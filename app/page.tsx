@@ -23,7 +23,7 @@ export default function Home() {
       <section className="flex flex-col items-center justify-center text-center py-28 px-6">
 
         <h1 className="text-6xl md:text-7xl font-bold leading-tight">
-          MY CHOICE PLAY
+          MY CHOICE PLAY OFFICIAL
         </h1>
 
         <p className="text-zinc-400 text-xl mt-6 max-w-2xl">
@@ -137,7 +137,7 @@ export default function Home() {
 
       {/* FOOTER */}
       <footer className="border-t border-zinc-800 py-10 text-center text-zinc-500">
-        © 2026 MY CHOICE PLAY — All Rights Reserved
+        © 2026 MY CHOICE PLAY OFFICIAL — All Rights Reserved
       </footer>
 
     </main>
