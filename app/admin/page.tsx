@@ -9,30 +9,55 @@ import {
   setDoc,
   increment,
 } from "firebase/firestore";
+
 import { db } from "../firebase";
 
 export default function AdminPage() {
   const [logged, setLogged] = useState(false);
   const [password, setPassword] = useState("");
+
   const [requests, setRequests] = useState<any[]>([]);
+  const [withdraws, setWithdraws] = useState<any[]>([]);
 
   useEffect(() => {
     if (!logged) return;
 
-    const unsub = onSnapshot(collection(db, "balanceRequests"), (snapshot) => {
-      const data: any[] = [];
+    const unsub1 = onSnapshot(
+      collection(db, "balanceRequests"),
+      (snapshot) => {
+        const data: any[] = [];
 
-      snapshot.forEach((docu) => {
-        data.push({
-          id: docu.id,
-          ...docu.data(),
+        snapshot.forEach((docu) => {
+          data.push({
+            id: docu.id,
+            ...docu.data(),
+          });
         });
-      });
 
-      setRequests(data);
-    });
+        setRequests(data);
+      }
+    );
 
-    return () => unsub();
+    const unsub2 = onSnapshot(
+      collection(db, "withdrawRequests"),
+      (snapshot) => {
+        const data: any[] = [];
+
+        snapshot.forEach((docu) => {
+          data.push({
+            id: docu.id,
+            ...docu.data(),
+          });
+        });
+
+        setWithdraws(data);
+      }
+    );
+
+    return () => {
+      unsub1();
+      unsub2();
+    };
   }, [logged]);
 
   const loginAdmin = () => {
@@ -61,7 +86,7 @@ export default function AdminPage() {
       status: "approved",
     });
 
-    alert("Approved & Balance Added ✅");
+    alert("Balance Added ✅");
   };
 
   const rejectRequest = async (id: string) => {
@@ -70,6 +95,35 @@ export default function AdminPage() {
     });
 
     alert("Rejected");
+  };
+
+  const approveWithdraw = async (req: any) => {
+    if (req.status === "approved") {
+      alert("Already Approved");
+      return;
+    }
+
+    await setDoc(
+      doc(db, "wallets", req.walletId || "mainUser"),
+      {
+        balance: increment(-Number(req.amount)),
+      },
+      { merge: true }
+    );
+
+    await updateDoc(doc(db, "withdrawRequests", req.id), {
+      status: "approved",
+    });
+
+    alert("Withdraw Approved ✅");
+  };
+
+  const rejectWithdraw = async (id: string) => {
+    await updateDoc(doc(db, "withdrawRequests", id), {
+      status: "rejected",
+    });
+
+    alert("Withdraw Rejected");
   };
 
   if (!logged) {
@@ -101,7 +155,13 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen bg-black text-white p-5">
-      <h1 className="text-6xl font-bold text-pink-500 mb-10">Admin Panel</h1>
+      <h1 className="text-6xl font-bold text-pink-500 mb-10">
+        Admin Panel
+      </h1>
+
+      <h2 className="text-4xl font-bold text-green-400 mb-5">
+        Add Balance Requests
+      </h2>
 
       <div className="space-y-5">
         {requests.map((req) => (
@@ -109,11 +169,15 @@ export default function AdminPage() {
             key={req.id}
             className="bg-zinc-900 border border-pink-500 rounded-3xl p-8"
           >
-            <h1 className="text-5xl font-bold">Amount: ₹{req.amount}</h1>
+            <h1 className="text-5xl font-bold">
+              Amount: ₹{req.amount}
+            </h1>
 
             <p className="text-2xl mt-4">Name: {req.name}</p>
             <p className="text-2xl mt-2">UTR: {req.utr}</p>
-            <p className="text-3xl mt-4">Status: {req.status}</p>
+            <p className="text-3xl mt-4">
+              Status: {req.status}
+            </p>
 
             <div className="flex gap-4 mt-6">
               <button
@@ -130,6 +194,50 @@ export default function AdminPage() {
 
               <button
                 onClick={() => rejectRequest(req.id)}
+                className="bg-red-500 px-5 py-2 rounded-full font-bold"
+              >
+                REJECT
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="text-4xl font-bold text-pink-500 mt-16 mb-5">
+        Withdraw Requests
+      </h2>
+
+      <div className="space-y-5">
+        {withdraws.map((req) => (
+          <div
+            key={req.id}
+            className="bg-zinc-900 border border-pink-500 rounded-3xl p-8"
+          >
+            <h1 className="text-5xl font-bold">
+              Withdraw: ₹{req.amount}
+            </h1>
+
+            <p className="text-2xl mt-4">UPI: {req.upi}</p>
+
+            <p className="text-3xl mt-4">
+              Status: {req.status}
+            </p>
+
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={() => approveWithdraw(req)}
+                disabled={req.status === "approved"}
+                className={`bg-green-500 text-black px-5 py-2 rounded-full font-bold ${
+                  req.status === "approved"
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+              >
+                APPROVE
+              </button>
+
+              <button
+                onClick={() => rejectWithdraw(req.id)}
                 className="bg-red-500 px-5 py-2 rounded-full font-bold"
               >
                 REJECT
