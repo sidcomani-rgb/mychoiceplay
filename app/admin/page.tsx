@@ -9,7 +9,6 @@ import {
   setDoc,
   increment,
 } from "firebase/firestore";
-
 import { db } from "../firebase";
 
 export default function AdminPage() {
@@ -20,21 +19,18 @@ export default function AdminPage() {
   useEffect(() => {
     if (!logged) return;
 
-    const unsub = onSnapshot(
-      collection(db, "balanceRequests"),
-      (snapshot) => {
-        const data: any[] = [];
+    const unsub = onSnapshot(collection(db, "balanceRequests"), (snapshot) => {
+      const data: any[] = [];
 
-        snapshot.forEach((doc) => {
-          data.push({
-            id: doc.id,
-            ...doc.data(),
-          });
+      snapshot.forEach((docu) => {
+        data.push({
+          id: docu.id,
+          ...docu.data(),
         });
+      });
 
-        setRequests(data);
-      }
-    );
+      setRequests(data);
+    });
 
     return () => unsub();
   }, [logged]);
@@ -49,40 +45,24 @@ export default function AdminPage() {
 
   const approveRequest = async (req: any) => {
     if (req.status === "approved") {
-  alert("Already Approved");
-  return;
-}
-  await setDoc(
-    doc(db, "wallets", req.walletId || "mainUser"),
-    {
-      balance: increment(Number(req.amount)),
-    },
-    { merge: true }
-  );
+      alert("Already Approved");
+      return;
+    }
 
-  const approveRequest = async (req: any) => {
+    await setDoc(
+      doc(db, "wallets", req.walletId || "mainUser"),
+      {
+        balance: increment(Number(req.amount)),
+      },
+      { merge: true }
+    );
 
-  const freshStatus = requests.find((r) => r.id === req.id);
+    await updateDoc(doc(db, "balanceRequests", req.id), {
+      status: "approved",
+    });
 
-  if (freshStatus?.status === "approved") {
-    alert("Already Approved");
-    return;
-  }
-
-  await setDoc(
-    doc(db, "wallets", req.walletId || "mainUser"),
-    {
-      balance: increment(Number(req.amount)),
-    },
-    { merge: true }
-  );
-
-  await updateDoc(doc(db, "balanceRequests", req.id), {
-    status: "approved",
-  });
-
-  alert("Approved & Balance Added ✅");
-};
+    alert("Approved & Balance Added ✅");
+  };
 
   const rejectRequest = async (id: string) => {
     await updateDoc(doc(db, "balanceRequests", id), {
@@ -121,9 +101,7 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen bg-black text-white p-5">
-      <h1 className="text-6xl font-bold text-pink-500 mb-10">
-        Admin Panel
-      </h1>
+      <h1 className="text-6xl font-bold text-pink-500 mb-10">Admin Panel</h1>
 
       <div className="space-y-5">
         {requests.map((req) => (
@@ -131,18 +109,21 @@ export default function AdminPage() {
             key={req.id}
             className="bg-zinc-900 border border-pink-500 rounded-3xl p-8"
           >
-            <h1 className="text-5xl font-bold">
-              Amount: ₹{req.amount}
-            </h1>
+            <h1 className="text-5xl font-bold">Amount: ₹{req.amount}</h1>
 
-            <p className="text-3xl mt-4">
-              Status: {req.status}
-            </p>
+            <p className="text-2xl mt-4">Name: {req.name}</p>
+            <p className="text-2xl mt-2">UTR: {req.utr}</p>
+            <p className="text-3xl mt-4">Status: {req.status}</p>
 
             <div className="flex gap-4 mt-6">
               <button
                 onClick={() => approveRequest(req)}
-                className="bg-green-500 text-black px-5 py-2 rounded-full font-bold"
+                disabled={req.status === "approved"}
+                className={`bg-green-500 text-black px-5 py-2 rounded-full font-bold ${
+                  req.status === "approved"
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
               >
                 APPROVE
               </button>
