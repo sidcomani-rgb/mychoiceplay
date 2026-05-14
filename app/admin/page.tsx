@@ -6,6 +6,8 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+  setDoc,
+  increment,
 } from "firebase/firestore";
 
 import { db } from "../firebase";
@@ -45,13 +47,21 @@ export default function AdminPage() {
     }
   };
 
-  const approveRequest = async (id: string) => {
-    await updateDoc(doc(db, "balanceRequests", id), {
-      status: "approved",
-    });
+  const approveRequest = async (req: any) => {
+  await setDoc(
+    doc(db, "wallets", req.walletId || "mainUser"),
+    {
+      balance: increment(Number(req.amount)),
+    },
+    { merge: true }
+  );
 
-    alert("Approved Successfully");
-  };
+  await updateDoc(doc(db, "balanceRequests", req.id), {
+    status: "approved",
+  });
+
+  alert("Approved & Balance Added ✅");
+};
 
   const rejectRequest = async (id: string) => {
     await updateDoc(doc(db, "balanceRequests", id), {
@@ -110,7 +120,7 @@ export default function AdminPage() {
 
             <div className="flex gap-4 mt-6">
               <button
-                onClick={() => approveRequest(req.id)}
+                onClick={() => approveRequest(req)}
                 className="bg-green-500 text-black px-5 py-2 rounded-full font-bold"
               >
                 APPROVE
