@@ -48,6 +48,27 @@ export default function AdminPage() {
   };
 
   const approveRequest = async (req: any) => {
+    if (req.status === "approved") {
+  alert("Already Approved");
+  return;
+}
+  await setDoc(
+    doc(db, "wallets", req.walletId || "mainUser"),
+    {
+      balance: increment(Number(req.amount)),
+    },
+    { merge: true }
+  );
+
+  const approveRequest = async (req: any) => {
+
+  const freshStatus = requests.find((r) => r.id === req.id);
+
+  if (freshStatus?.status === "approved") {
+    alert("Already Approved");
+    return;
+  }
+
   await setDoc(
     doc(db, "wallets", req.walletId || "mainUser"),
     {
