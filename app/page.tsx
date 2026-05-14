@@ -2,30 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { db } from "./firebase";
-import {
-  collection,
-  addDoc,
-  doc,
-  onSnapshot,
-} from "firebase/firestore";
+import { collection, addDoc, doc, onSnapshot } from "firebase/firestore";
+
 export default function Home() {
   const [showQR, setShowQR] = useState(false);
   const [amount, setAmount] = useState("");
   const [name, setName] = useState("");
   const [utr, setUtr] = useState("");
   const [balance, setBalance] = useState(0);
-useEffect(() => {
-  const unsub = onSnapshot(
-    doc(db, "wallets", "mainUser"),
-    (snap) => {
-      if (snap.exists()) {
-        setBalance(snap.data().balance || 0);
-      }
-    }
-  );
 
-  return () => unsub();
-}, []);
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "wallets", "mainUser"), (snap) => {
+      if (snap.exists()) setBalance(snap.data().balance || 0);
+    });
+
+    return () => unsub();
+  }, []);
 
   const handlePaid = async () => {
     if (!amount || !name || !utr) {
@@ -43,12 +35,11 @@ useEffect(() => {
     });
 
     alert("Request Sent");
-
-setAmount("");
-setName("");
-setUtr("");
-
-setShowQR(false);
+    setAmount("");
+    setName("");
+    setUtr("");
+    setShowQR(false);
+  };
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-8 p-5">
