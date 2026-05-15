@@ -1,170 +1,255 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db } from "./firebase";
 import {
   collection,
-  addDoc,
-  doc,
   onSnapshot,
+  doc,
+  updateDoc,
+  setDoc,
+  increment,
 } from "firebase/firestore";
 
-export default function Home() {
-  const [showQR, setShowQR] = useState(false);
-  const [showWithdraw, setShowWithdraw] = useState(false);
+import { db } from "../firebase";
 
-  const [amount, setAmount] = useState("");
-  const [name, setName] = useState("");
-  const [utr, setUtr] = useState("");
+export default function AdminPage() {
+  const [logged, setLogged] = useState(false);
+  const [password, setPassword] = useState("");
 
-  const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [upi, setUpi] = useState("");
-
-  const [balance, setBalance] = useState(0);
-  const [deposits, setDeposits] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [withdraws, setWithdraws] = useState<any[]>([]);
 
   useEffect(() => {
-    const unsubWallet = onSnapshot(doc(db, "wallets", "mainUser"), (snap) => {
-      if (snap.exists()) setBalance(snap.data().balance || 0);
+    if (!logged) return;
+
+    const unsub1 = onSnapshot(collection(db, "balanceRequests"), (snapshot) => {
+      const data: any[] = [];
+
+      snapshot.forEach((docu) => {
+        data.push({
+          id: docu.id,
+          ...docu.data(),
+        });
+      });
+
+      setRequests(data);
     });
 
-    const unsubDeposit = onSnapshot(collection(db, "balanceRequests"), (snap) => {
+    const unsub2 = onSnapshot(collection(db, "withdrawRequests"), (snapshot) => {
       const data: any[] = [];
-      snap.forEach((d) => data.push({ id: d.id, ...d.data() }));
-      setDeposits(data);
-    });
 
-    const unsubWithdraw = onSnapshot(collection(db, "withdrawRequests"), (snap) => {
-      const data: any[] = [];
-      snap.forEach((d) => data.push({ id: d.id, ...d.data() }));
+      snapshot.forEach((docu) => {
+        data.push({
+          id: docu.id,
+          ...docu.data(),
+        });
+      });
+
       setWithdraws(data);
     });
 
     return () => {
-      unsubWallet();
-      unsubDeposit();
-      unsubWithdraw();
+      unsub1();
+      unsub2();
     };
-  }, []);
+  }, [logged]);
 
-  const handlePaid = async () => {
-    if (!amount || !name || !utr) {
-      alert("Name, Amount, UTR ellam enter pannunga");
-      return;
+  const loginAdmin = () => {
+    if (password === "mani123") {
+      setLogged(true);
+    } else {
+      alert("Wrong Password");
     }
-
-    await addDoc(collection(db, "balanceRequests"), {
-      name,
-      amount: Number(amount),
-      utr,
-      walletId: "mainUser",
-      status: "pending",
-      createdAt: new Date(),
-    });
-
-    alert("Request Sent");
-    setAmount("");
-    setName("");
-    setUtr("");
-    setShowQR(false);
   };
 
-  const handleWithdraw = async () => {
-    if (!withdrawAmount || !upi) {
-      alert("Withdraw amount and UPI enter pannunga");
+  const approveRequest = async (req: any) => {
+    if (req.status === "approved") {
+      alert("Already Approved");
       return;
     }
 
-    if (Number(withdrawAmount) > balance) {
-      alert("Insufficient Balance");
-      return;
-    }
+    await setDoc(
+      doc(db, "wallets", req.walletId || "mainUser"),
+      { balance: increment(Number(req.amount)) },
+      { merge: true }
+    );
 
-    await addDoc(collection(db, "withdrawRequests"), {
-      amount: Number(withdrawAmount),
-      upi,
-      walletId: "mainUser",
-      status: "pending",
-      createdAt: new Date(),
+    await updateDoc(doc(db, "balanceRequests", req.id), {
+      status: "approved",
     });
 
-    alert("Withdraw Request Sent");
-    setWithdrawAmount("");
-    setUpi("");
-    setShowWithdraw(false);
+    alert("Balance Added ✅");
   };
+
+  const rejectRequest = async (id: string) => {
+    await updateDoc(doc(db, "balanceRequests", id), {
+      status: "rejected",
+    });
+
+    alert("Rejected");
+  };
+
+  const approveWithdraw = async (req: any) => {
+    if (req.status === "approved") {
+      alert("Already Approved");
+      return;
+    }
+
+    await setDoc(
+      doc(db, "wallets", req.walletId || "mainUser"),
+      { balance: increment(-Number(req.amount)) },
+      { merge: true }
+    );
+
+    await updateDoc(doc(db, "withdrawRequests", req.id), {
+      status: "approved",
+    });
+
+    alert("Withdraw Approved ✅");
+  };
+
+  const rejectWithdraw = async (id: string) => {
+    await updateDoc(doc(db, "withdrawRequests", id), {
+      status: "rejected",
+    });
+
+    alert("Withdraw Rejected");
+  };
+
+  if (!logged) {
+    return (
+      <main className="min-h-screen bg-black flex items-center justify-center p-5">
+        <div className="bg-zinc-900 p-8 rounded-3xl border border-pink-500 w-full max-w-sm">
+          <h1 className="text-4xl font-bold text-pink-500 text-center">
+            ADMIN LOGIN
+          </h1>
+
+          <input
+            type="password"
+            placeholder="Enter Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full mt-6 px-4 py-3 rounded-xl bg-white text-black"
+          />
+
+          <button
+            onClick={loginAdmin}
+            className="w-full mt-5 bg-green-500 text-black py-3 rounded-full font-bold"
+          >
+            LOGIN
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center gap-8 p-5">
-      <h1 className="text-5xl font-bold text-pink-500 mt-10">MY CHOICE PLAY</h1>
+    <main className="min-h-screen bg-black text-white p-5">
+      <h1 className="text-6xl font-bold text-pink-500 mb-10">Admin Panel</h1>
 
-      <div className="bg-zinc-900 p-8 rounded-3xl border border-pink-500 text-center w-full max-w-md">
-        <h2 className="text-2xl text-zinc-400">Wallet Balance</h2>
-        <h1 className="text-5xl font-bold text-green-400 mt-4">₹{balance}</h1>
+      <h2 className="text-4xl font-bold text-green-400 mb-5">
+        Add Balance Requests
+      </h2>
 
-        <button onClick={() => setShowQR(true)} className="mt-8 bg-green-500 px-8 py-4 rounded-full font-bold text-black w-full">
-          ADD BALANCE
-        </button>
+      <div className="space-y-5">
+        {requests
+          .filter((req) => req.status === "pending")
+          .map((req) => (
+            <div
+              key={req.id}
+              className="bg-zinc-900 border border-pink-500 rounded-3xl p-8"
+            >
+              <h1 className="text-5xl font-bold">Amount: ₹{req.amount}</h1>
+              <p className="text-2xl mt-4">Name: {req.name}</p>
+              <p className="text-2xl mt-2">UTR: {req.utr}</p>
+              <p className="text-3xl mt-4">Status: {req.status}</p>
 
-        <button onClick={() => setShowWithdraw(true)} className="mt-4 bg-pink-500 px-8 py-4 rounded-full font-bold text-white w-full">
-          WITHDRAW
-        </button>
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={() => approveRequest(req)}
+                  className="bg-green-500 text-black px-5 py-2 rounded-full font-bold"
+                >
+                  APPROVE
+                </button>
+
+                <button
+                  onClick={() => rejectRequest(req.id)}
+                  className="bg-red-500 px-5 py-2 rounded-full font-bold"
+                >
+                  REJECT
+                </button>
+              </div>
+            </div>
+          ))}
       </div>
 
-      <div className="w-full max-w-md bg-zinc-900 border border-pink-500 rounded-3xl p-5">
-        <h2 className="text-3xl font-bold text-green-400">Deposit History</h2>
-        {deposits.map((d) => (
-          <div key={d.id} className="border-b border-zinc-700 py-3">
-            <p>Amount: ₹{d.amount}</p>
-            <p>Status: {d.status}</p>
-            <p>UTR: {d.utr}</p>
-          </div>
-        ))}
+      <h2 className="text-4xl font-bold text-pink-500 mt-16 mb-5">
+        Withdraw Requests
+      </h2>
+
+      <div className="space-y-5">
+        {withdraws
+          .filter((req) => req.status === "pending")
+          .map((req) => (
+            <div
+              key={req.id}
+              className="bg-zinc-900 border border-pink-500 rounded-3xl p-8"
+            >
+              <h1 className="text-5xl font-bold">Withdraw: ₹{req.amount}</h1>
+              <p className="text-2xl mt-4">UPI: {req.upi}</p>
+              <p className="text-3xl mt-4">Status: {req.status}</p>
+
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={() => approveWithdraw(req)}
+                  className="bg-green-500 text-black px-5 py-2 rounded-full font-bold"
+                >
+                  APPROVE
+                </button>
+
+                <button
+                  onClick={() => rejectWithdraw(req.id)}
+                  className="bg-red-500 px-5 py-2 rounded-full font-bold"
+                >
+                  REJECT
+                </button>
+              </div>
+            </div>
+          ))}
       </div>
 
-      <div className="w-full max-w-md bg-zinc-900 border border-pink-500 rounded-3xl p-5">
-        <h2 className="text-3xl font-bold text-pink-500">Withdraw History</h2>
-        {withdraws.map((w) => (
-          <div key={w.id} className="border-b border-zinc-700 py-3">
-            <p>Amount: ₹{w.amount}</p>
-            <p>UPI: {w.upi}</p>
-            <p>Status: {w.status}</p>
-          </div>
-        ))}
+      <h2 className="text-4xl font-bold text-yellow-400 mt-16 mb-5">
+        History
+      </h2>
+
+      <div className="space-y-5">
+        {requests
+          .filter((req) => req.status !== "pending")
+          .map((req) => (
+            <div
+              key={req.id}
+              className="bg-zinc-900 border border-yellow-500 rounded-3xl p-8"
+            >
+              <h1 className="text-4xl font-bold">Deposit: ₹{req.amount}</h1>
+              <p className="text-2xl mt-3">Name: {req.name}</p>
+              <p className="text-2xl mt-2">UTR: {req.utr}</p>
+              <p className="text-2xl mt-3">Status: {req.status}</p>
+            </div>
+          ))}
+
+        {withdraws
+          .filter((req) => req.status !== "pending")
+          .map((req) => (
+            <div
+              key={req.id}
+              className="bg-zinc-900 border border-yellow-500 rounded-3xl p-8"
+            >
+              <h1 className="text-4xl font-bold">Withdraw: ₹{req.amount}</h1>
+              <p className="text-2xl mt-3">UPI: {req.upi}</p>
+              <p className="text-2xl mt-3">Status: {req.status}</p>
+            </div>
+          ))}
       </div>
-
-      {showQR && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-5">
-          <div className="bg-zinc-900 rounded-3xl p-6 w-full max-w-sm text-center border border-pink-500">
-            <h2 className="text-3xl font-bold text-pink-500">Add Balance</h2>
-
-            <input type="text" placeholder="Your Name" className="w-full mt-5 px-4 py-3 rounded bg-white text-black" value={name} onChange={(e) => setName(e.target.value)} />
-            <input type="number" placeholder="Enter Amount" className="w-full mt-3 px-4 py-3 rounded bg-white text-black" value={amount} onChange={(e) => setAmount(e.target.value)} />
-
-            <img src="/qr.jpeg.jpeg" alt="Payment QR" className="w-64 h-64 object-contain mx-auto mt-5 bg-white rounded-xl p-3" />
-
-            <input type="text" placeholder="Enter UTR / Transaction ID" className="w-full mt-4 px-4 py-3 rounded bg-white text-black" value={utr} onChange={(e) => setUtr(e.target.value)} />
-
-            <button onClick={handlePaid} className="mt-5 bg-green-500 w-full py-3 rounded-full font-bold text-black">I PAID</button>
-            <button onClick={() => setShowQR(false)} className="mt-3 bg-red-500 w-full py-3 rounded-full font-bold">CLOSE</button>
-          </div>
-        </div>
-      )}
-
-      {showWithdraw && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-5">
-          <div className="bg-zinc-900 rounded-3xl p-6 w-full max-w-sm text-center border border-pink-500">
-            <h2 className="text-3xl font-bold text-pink-500">Withdraw</h2>
-
-            <input type="number" placeholder="Withdraw Amount" className="w-full mt-5 px-4 py-3 rounded bg-white text-black" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
-            <input type="text" placeholder="Enter UPI ID" className="w-full mt-3 px-4 py-3 rounded bg-white text-black" value={upi} onChange={(e) => setUpi(e.target.value)} />
-
-            <button onClick={handleWithdraw} className="mt-5 bg-pink-500 w-full py-3 rounded-full font-bold">REQUEST WITHDRAW</button>
-            <button onClick={() => setShowWithdraw(false)} className="mt-3 bg-red-500 w-full py-3 rounded-full font-bold">CLOSE</button>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
