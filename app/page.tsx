@@ -1,104 +1,85 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { db } from "./firebase";
+
 import {
   collection,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  updateDoc,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 
-type Deposit = {
-  id: string;
-  name?: string;
-  amount?: number;
-  utr?: string;
-  status?: string;
-};
+export default function Home() {
+  const [showAdd, setShowAdd] = useState(true);
 
-export default function AdminPage() {
-  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [amount, setAmount] = useState("");
+  const [utr, setUtr] = useState("");
 
-  useEffect(() => {
-    const q = query(collection(db, "deposits"), orderBy("createdAt", "desc"));
+  const submitDeposit = async () => {
+    try {
+      await addDoc(collection(db, "deposits"), {
+        name: "Sanghavi",
+        amount: Number(amount),
+        utr: utr,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
 
-    const unsub = onSnapshot(q, (snapshot) => {
-      const list = snapshot.docs.map((item) => ({
-        id: item.id,
-        ...item.data(),
-      })) as Deposit[];
+      alert("Request Submitted");
 
-      setDeposits(list);
-    });
-
-    return () => unsub();
-  }, []);
-
-  const approveDeposit = async (id: string) => {
-    await updateDoc(doc(db, "deposits", id), {
-      status: "approved",
-    });
-
-    alert("Deposit Approved ✅");
-  };
-
-  const rejectDeposit = async (id: string) => {
-    await updateDoc(doc(db, "deposits", id), {
-      status: "rejected",
-    });
-
-    alert("Deposit Rejected ❌");
+      setAmount("");
+      setUtr("");
+    } catch (error) {
+      console.log(error);
+      alert("Firestore Error");
+    }
   };
 
   return (
-    <main className="min-h-screen bg-black text-white p-5">
-      <h1 className="text-5xl font-bold text-pink-500 mb-8">
-        Admin Panel
-      </h1>
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      {showAdd && (
+        <div className="border border-pink-500 p-5 rounded-2xl bg-zinc-900 w-[350px]">
+          <h1 className="text-pink-500 text-5xl mb-5 text-center">
+            Add Balance
+          </h1>
 
-      <h2 className="text-3xl font-bold text-green-400 mb-5">
-        Add Balance Requests
-      </h2>
+          <img
+            src="/qr.jpg"
+            alt="QR"
+            className="mx-auto rounded-xl w-[300px] h-[300px] object-cover"
+          />
 
-      {deposits.length === 0 && (
-        <p className="text-xl text-gray-400">No deposit requests</p>
-      )}
+          <input
+            type="number"
+            placeholder="Enter Amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-full p-4 rounded-xl text-black mt-5 text-2xl"
+          />
 
-      {deposits.map((dep) => (
-        <div
-          key={dep.id}
-          className="bg-zinc-900 border border-pink-500 rounded-2xl p-6 mb-5"
-        >
-          <h3 className="text-4xl font-bold">
-            Amount: ₹{dep.amount}
-          </h3>
+          <input
+            type="text"
+            placeholder="Enter UTR Number"
+            value={utr}
+            onChange={(e) => setUtr(e.target.value)}
+            className="w-full p-4 rounded-xl text-black mt-5 text-2xl"
+          />
 
-          <p className="text-2xl mt-3">Name: {dep.name}</p>
-          <p className="text-2xl mt-2">UTR: {dep.utr}</p>
-          <p className="text-2xl mt-2">Status: {dep.status}</p>
+          <button
+            onClick={submitDeposit}
+            className="w-full bg-pink-500 py-4 rounded-full text-2xl mt-5 text-white"
+          >
+            SUBMIT
+          </button>
 
-          <div className="flex gap-4 mt-5">
-            <button
-              onClick={() => approveDeposit(dep.id)}
-              disabled={dep.status === "approved"}
-              className="bg-green-500 text-black px-6 py-3 rounded-full font-bold"
-            >
-              APPROVE
-            </button>
-
-            <button
-              onClick={() => rejectDeposit(dep.id)}
-              disabled={dep.status === "rejected"}
-              className="bg-red-500 text-white px-6 py-3 rounded-full font-bold"
-            >
-              REJECT
-            </button>
-          </div>
+          <button
+            onClick={() => setShowAdd(false)}
+            className="w-full bg-red-500 py-4 rounded-full text-2xl mt-5 text-white"
+          >
+            CLOSE
+          </button>
         </div>
-      ))}
-    </main>
+      )}
+    </div>
   );
 }
