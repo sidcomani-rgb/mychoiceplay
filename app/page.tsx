@@ -57,7 +57,9 @@ export default function Home() {
           <Image
             src="/qr.jpeg"
             alt="QR"
-            className="mx-auto rounded-xl w-[300px]"
+            width={300}
+            height={300}
+            className="mx-auto rounded-xl"
           />
 
           <input
