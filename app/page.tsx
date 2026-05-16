@@ -1,91 +1,102 @@
 "use client";
 
-import { useState } from "react";
-
-import { db } from "./firebase";
-
+import { useEffect, useState } from "react";
+import { db } from "../firebase";
 import {
   collection,
-  addDoc,
-  serverTimestamp,
+  onSnapshot,
+  updateDoc,
+  doc,
+  query,
+  orderBy,
 } from "firebase/firestore";
 
-export default function Home() {
-  const [showAdd, setShowAdd] = useState(true);
-  const [amount, setAmount] = useState("");
-  const [utr, setUtr] = useState("");
+type Deposit = {
+  id: string;
+  name: string;
+  amount: number;
+  utr: string;
+  status: string;
+};
 
-  const submitDeposit = async () => {
-    if (!amount || !utr) {
-      alert("Enter amount and UTR");
-      return;
-    }
+export default function AdminPage() {
+  const [deposits, setDeposits] = useState<Deposit[]>([]);
 
-    try {
-      const docRef = await addDoc(collection(db, "deposits"), {
-        name: "Sanghavi",
-        amount: Number(amount),
-        utr: utr,
-        status: "pending",
-        createdAt: serverTimestamp(),
-      });
+  useEffect(() => {
+    const q = query(collection(db, "deposits"), orderBy("createdAt", "desc"));
 
-      alert("Saved ID: " + docRef.id);
+    const unsub = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as Deposit[];
 
-      setAmount("");
-      setUtr("");
-      setShowAdd(false);
-    } catch (error) {
-      console.log(error);
-      alert("Firestore Error");
-    }
+      setDeposits(data);
+    });
+
+    return () => unsub();
+  }, []);
+
+  const approveDeposit = async (id: string) => {
+    await updateDoc(doc(db, "deposits", id), {
+      status: "approved",
+    });
+
+    alert("Deposit Approved ✅");
+  };
+
+  const rejectDeposit = async (id: string) => {
+    await updateDoc(doc(db, "deposits", id), {
+      status: "rejected",
+    });
+
+    alert("Deposit Rejected ❌");
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      {showAdd && (
-        <div className="border border-pink-500 p-5 rounded-2xl bg-zinc-900 w-[350px] text-center">
-          <h1 className="text-pink-500 text-5xl mb-5">
-            Add Balance
-          </h1>
+    <main className="min-h-screen bg-black text-white p-6">
+      <h1 className="text-5xl font-bold text-pink-500 mb-8">
+        Admin Panel
+      </h1>
 
-          <img
-            src="/qr.jpg"
-            alt="QR"
-            className="mx-auto rounded-xl w-[300px] h-[300px] object-cover"
-          />
+      <h2 className="text-3xl font-bold text-green-400 mb-5">
+        Add Balance Requests
+      </h2>
 
-          <input
-            type="number"
-            placeholder="Enter Amount"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-4 rounded-xl text-black mt-5 text-2xl"
-          />
-
-          <input
-            type="text"
-            placeholder="Enter UTR Number"
-            value={utr}
-            onChange={(e) => setUtr(e.target.value)}
-            className="w-full p-4 rounded-xl text-black mt-5 text-2xl"
-          />
-
-          <button
-            onClick={submitDeposit}
-            className="w-full bg-pink-500 py-4 rounded-full text-2xl mt-5 text-white"
-          >
-            SUBMIT
-          </button>
-
-          <button
-            onClick={() => setShowAdd(false)}
-            className="w-full bg-red-500 py-4 rounded-full text-2xl mt-5 text-white"
-          >
-            CLOSE
-          </button>
-        </div>
+      {deposits.length === 0 && (
+        <p className="text-xl text-gray-400">No deposits found</p>
       )}
-    </div>
+
+      {deposits.map((dep) => (
+        <div
+          key={dep.id}
+          className="bg-zinc-900 border border-pink-500 rounded-2xl p-6 mb-5"
+        >
+          <h2 className="text-4xl font-bold">Amount: ₹{dep.amount}</h2>
+
+          <p className="text-2xl mt-3">Name: {dep.name}</p>
+          <p className="text-2xl mt-2">UTR: {dep.utr}</p>
+          <p className="text-2xl mt-2">Status: {dep.status}</p>
+
+          <div className="flex gap-4 mt-5">
+            <button
+              onClick={() => approveDeposit(dep.id)}
+              disabled={dep.status === "approved"}
+              className="bg-green-500 text-black px-6 py-3 rounded-full font-bold"
+            >
+              APPROVE
+            </button>
+
+            <button
+              onClick={() => rejectDeposit(dep.id)}
+              disabled={dep.status === "rejected"}
+              className="bg-red-500 text-white px-6 py-3 rounded-full font-bold"
+            >
+              REJECT
+            </button>
+          </div>
+        </div>
+      ))}
+    </main>
   );
 }
