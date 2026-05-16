@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 
 import { db } from "./firebase";
 
@@ -13,7 +12,6 @@ import {
 
 export default function Home() {
   const [showAdd, setShowAdd] = useState(true);
-
   const [amount, setAmount] = useState("");
   const [utr, setUtr] = useState("");
 
@@ -37,7 +35,6 @@ export default function Home() {
       setAmount("");
       setUtr("");
       setShowAdd(false);
-
     } catch (error) {
       console.log(error);
       alert("Firestore Error");
@@ -46,20 +43,16 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">
-
       {showAdd && (
         <div className="border border-pink-500 p-5 rounded-2xl bg-zinc-900 w-[350px] text-center">
-
           <h1 className="text-pink-500 text-5xl mb-5">
             Add Balance
           </h1>
 
-          <Image
+          <img
             src="/qr.jpg"
             alt="QR"
-            width={300}
-            height={300}
-            className="mx-auto rounded-xl"
+            className="mx-auto rounded-xl w-[300px] h-[300px] object-cover"
           />
 
           <input
@@ -91,10 +84,8 @@ export default function Home() {
           >
             CLOSE
           </button>
-
         </div>
       )}
-
     </div>
   );
 }
