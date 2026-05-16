@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signInWithPopup, onAuthStateChanged, signOut, User } from "firebase/auth";
+import {
+  signInWithPopup,
+  onAuthStateChanged,
+  signOut,
+  User,
+} from "firebase/auth";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { auth, provider, db } from "./firebase";
 
@@ -38,7 +43,7 @@ export default function Home() {
       name: user.displayName || "User",
       email: user.email,
       amount: Number(amount),
-      utr,
+      utr: utr,
       status: "pending",
       createdAt: serverTimestamp(),
     });
@@ -69,9 +74,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-black text-white p-5">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-pink-500 text-5xl font-bold">
-          MY CHOICE PLAY
-        </h1>
+        <h1 className="text-pink-500 text-5xl font-bold">MY CHOICE PLAY</h1>
 
         <button
           onClick={logout}
@@ -82,8 +85,8 @@ export default function Home() {
       </div>
 
       <div className="border border-pink-500 bg-zinc-900 rounded-2xl p-6 text-center">
-        <p className="text-2xl text-gray-300">Welcome</p>
-        <h2 className="text-3xl text-green-400 mt-2">{user.displayName}</h2>
+        <p className="text-2xl text-gray-300">Wallet Balance</p>
+        <h2 className="text-5xl text-green-400 mt-2">₹0</h2>
 
         <p className="text-gray-400 mt-3">{user.email}</p>
 
