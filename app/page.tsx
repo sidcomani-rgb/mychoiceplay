@@ -1,85 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import { db } from "./firebase";
+import { signInWithPopup } from "firebase/auth";
+import { auth, provider } from "./firebase";
 
-import {
-  collection,
-  addDoc,
-  serverTimestamp,
-} from "firebase/firestore";
+export default function HomePage() {
 
-export default function Home() {
-  const [showAdd, setShowAdd] = useState(true);
-
-  const [amount, setAmount] = useState("");
-  const [utr, setUtr] = useState("");
-
-  const submitDeposit = async () => {
+  const login = async () => {
     try {
-      await addDoc(collection(db, "deposits"), {
-        name: "Sanghavi",
-        amount: Number(amount),
-        utr: utr,
-        status: "pending",
-        createdAt: serverTimestamp(),
-      });
-
-      alert("Request Submitted");
-
-      setAmount("");
-      setUtr("");
+      await signInWithPopup(auth, provider);
+      alert("Login Success");
     } catch (error) {
       console.log(error);
-      alert("Firestore Error");
+      alert("Login Failed");
     }
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      {showAdd && (
-        <div className="border border-pink-500 p-5 rounded-2xl bg-zinc-900 w-[350px]">
-          <h1 className="text-pink-500 text-5xl mb-5 text-center">
-            Add Balance
-          </h1>
+    <main className="min-h-screen bg-black flex flex-col items-center justify-center">
+      
+      <h1 className="text-pink-500 text-6xl font-bold mb-10">
+        MYCHOICEPLAY
+      </h1>
 
-          <img
-            src="/qr.jpg"
-            alt="QR"
-            className="mx-auto rounded-xl w-[300px] h-[300px] object-cover"
-          />
+      <button
+        onClick={login}
+        className="bg-white text-black px-10 py-4 rounded-full text-2xl font-bold"
+      >
+        LOGIN WITH GOOGLE
+      </button>
 
-          <input
-            type="number"
-            placeholder="Enter Amount"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-4 rounded-xl text-black mt-5 text-2xl"
-          />
-
-          <input
-            type="text"
-            placeholder="Enter UTR Number"
-            value={utr}
-            onChange={(e) => setUtr(e.target.value)}
-            className="w-full p-4 rounded-xl text-black mt-5 text-2xl"
-          />
-
-          <button
-            onClick={submitDeposit}
-            className="w-full bg-pink-500 py-4 rounded-full text-2xl mt-5 text-white"
-          >
-            SUBMIT
-          </button>
-
-          <button
-            onClick={() => setShowAdd(false)}
-            className="w-full bg-red-500 py-4 rounded-full text-2xl mt-5 text-white"
-          >
-            CLOSE
-          </button>
-        </div>
-      )}
-    </div>
+    </main>
   );
 }
