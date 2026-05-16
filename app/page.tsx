@@ -1,22 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db } from "../firebase";
+import { db } from "./firebase";
 import {
   collection,
-  onSnapshot,
-  updateDoc,
   doc,
-  query,
+  onSnapshot,
   orderBy,
+  query,
+  updateDoc,
 } from "firebase/firestore";
 
 type Deposit = {
   id: string;
-  name: string;
-  amount: number;
-  utr: string;
-  status: string;
+  name?: string;
+  amount?: number;
+  utr?: string;
+  status?: string;
 };
 
 export default function AdminPage() {
@@ -26,12 +26,12 @@ export default function AdminPage() {
     const q = query(collection(db, "deposits"), orderBy("createdAt", "desc"));
 
     const unsub = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
+      const list = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
       })) as Deposit[];
 
-      setDeposits(data);
+      setDeposits(list);
     });
 
     return () => unsub();
@@ -54,7 +54,7 @@ export default function AdminPage() {
   };
 
   return (
-    <main className="min-h-screen bg-black text-white p-6">
+    <main className="min-h-screen bg-black text-white p-5">
       <h1 className="text-5xl font-bold text-pink-500 mb-8">
         Admin Panel
       </h1>
@@ -64,7 +64,7 @@ export default function AdminPage() {
       </h2>
 
       {deposits.length === 0 && (
-        <p className="text-xl text-gray-400">No deposits found</p>
+        <p className="text-xl text-gray-400">No deposit requests</p>
       )}
 
       {deposits.map((dep) => (
@@ -72,7 +72,9 @@ export default function AdminPage() {
           key={dep.id}
           className="bg-zinc-900 border border-pink-500 rounded-2xl p-6 mb-5"
         >
-          <h2 className="text-4xl font-bold">Amount: ₹{dep.amount}</h2>
+          <h3 className="text-4xl font-bold">
+            Amount: ₹{dep.amount}
+          </h3>
 
           <p className="text-2xl mt-3">Name: {dep.name}</p>
           <p className="text-2xl mt-2">UTR: {dep.utr}</p>
