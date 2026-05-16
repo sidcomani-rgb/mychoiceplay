@@ -55,7 +55,7 @@ export default function Home() {
           </h1>
 
           <Image
-            src="/qr.jpeg"
+            src="/qr.jpg"
             alt="QR"
             width={300}
             height={300}
