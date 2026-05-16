@@ -24,7 +24,7 @@ export default function Home() {
     }
 
     try {
-      await addDoc(collection(db, "deposits"), {
+      const docRef = await addDoc(collection(db, "deposits"), {
         name: "Sanghavi",
         amount: Number(amount),
         utr: utr,
@@ -32,19 +32,21 @@ export default function Home() {
         createdAt: serverTimestamp(),
       });
 
-      alert("Deposit Request Sent ✅");
+      alert("Saved ID: " + docRef.id);
 
       setAmount("");
       setUtr("");
       setShowAdd(false);
+
     } catch (error) {
       console.log(error);
-      alert("Error");
+      alert("Firestore Error");
     }
   };
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">
+
       {showAdd && (
         <div className="border border-pink-500 p-5 rounded-2xl bg-zinc-900 w-[350px] text-center">
 
@@ -92,6 +94,7 @@ export default function Home() {
 
         </div>
       )}
+
     </div>
   );
 }
