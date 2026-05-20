@@ -2,12 +2,19 @@
 
 import { useEffect, useState } from "react";
 import {
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   onAuthStateChanged,
   signOut,
   User,
 } from "firebase/auth";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  doc,
+  onSnapshot,
+} from "firebase/firestore";
 import { auth, provider, db } from "./firebase";
 
 export default function Home() {
@@ -15,17 +22,28 @@ export default function Home() {
   const [showAdd, setShowAdd] = useState(false);
   const [amount, setAmount] = useState("");
   const [utr, setUtr] = useState("");
+  const [balance, setBalance] = useState(0);
 
   useEffect(() => {
+    getRedirectResult(auth).catch(console.log);
+
     const unsub = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+
+      if (currentUser) {
+        const walletRef = doc(db, "wallets", currentUser.uid);
+
+        onSnapshot(walletRef, (snap) => {
+          setBalance(snap.exists() ? snap.data().balance || 0 : 0);
+        });
+      }
     });
 
     return () => unsub();
   }, []);
 
   const login = async () => {
-    await signInWithPopup(auth, provider);
+    await signInWithRedirect(auth, provider);
   };
 
   const logout = async () => {
@@ -43,7 +61,7 @@ export default function Home() {
       name: user.displayName || "User",
       email: user.email,
       amount: Number(amount),
-      utr: utr,
+      utr,
       status: "pending",
       createdAt: serverTimestamp(),
     });
@@ -73,21 +91,13 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-black text-white p-5">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-pink-500 text-5xl font-bold">MY CHOICE PLAY</h1>
-
-        <button
-          onClick={logout}
-          className="bg-red-500 px-5 py-2 rounded-full font-bold"
-        >
-          LOGOUT
-        </button>
-      </div>
+      <h1 className="text-pink-500 text-5xl font-bold mb-6">
+        MY CHOICE PLAY
+      </h1>
 
       <div className="border border-pink-500 bg-zinc-900 rounded-2xl p-6 text-center">
-        <p className="text-2xl text-gray-300">Wallet Balance</p>
-        <h2 className="text-5xl text-green-400 mt-2">₹0</h2>
-
+        <p className="text-2xl">Wallet Balance</p>
+        <h2 className="text-5xl text-green-400 mt-2">₹{balance}</h2>
         <p className="text-gray-400 mt-3">{user.email}</p>
 
         <button
@@ -95,6 +105,13 @@ export default function Home() {
           className="w-full bg-green-500 text-black py-4 rounded-full text-2xl font-bold mt-6"
         >
           ADD BALANCE
+        </button>
+
+        <button
+          onClick={logout}
+          className="w-full bg-red-500 py-3 rounded-full font-bold mt-4"
+        >
+          LOGOUT
         </button>
       </div>
 
