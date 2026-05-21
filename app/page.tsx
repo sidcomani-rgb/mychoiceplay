@@ -51,10 +51,18 @@ export default function Home() {
 
   const login = async () => {
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      console.log(result.user);
     } catch (error: any) {
       console.log(error);
-      alert(error.message);
+
+      if (error.code === "auth/popup-blocked") {
+        alert("ALLOW POPUP IN CHROME");
+      } else if (error.code === "auth/cancelled-popup-request") {
+        alert("TRY AGAIN SLOWLY");
+      } else {
+        alert(error.message);
+      }
     }
   };
 
@@ -64,7 +72,7 @@ export default function Home() {
 
   const submitDeposit = async () => {
     if (!amount || !utr || !user) {
-      alert("Enter amount and UTR");
+      alert("ENTER AMOUNT AND UTR");
       return;
     }
 
@@ -78,7 +86,7 @@ export default function Home() {
       createdAt: serverTimestamp(),
     });
 
-    alert("Deposit Request Sent ✅");
+    alert("REQUEST SENT");
 
     setAmount("");
     setUtr("");
@@ -93,8 +101,9 @@ export default function Home() {
         </h1>
 
         <button
+          type="button"
           onClick={login}
-          className="bg-white text-black px-10 py-4 rounded-full text-2xl font-bold"
+          className="relative z-50 bg-white text-black px-10 py-4 rounded-full text-2xl font-bold cursor-pointer"
         >
           LOGIN WITH GOOGLE
         </button>
