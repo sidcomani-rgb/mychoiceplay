@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import {
-  signInWithRedirect,
-  getRedirectResult,
+  GoogleAuthProvider,
+  signInWithPopup,
   onAuthStateChanged,
   signOut,
   User,
 } from "firebase/auth";
+
 import {
   collection,
   addDoc,
@@ -15,7 +17,10 @@ import {
   doc,
   onSnapshot,
 } from "firebase/firestore";
-import { auth, provider, db } from "./firebase";
+
+import { auth, db } from "./firebase";
+
+const provider = new GoogleAuthProvider();
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -25,8 +30,6 @@ export default function Home() {
   const [balance, setBalance] = useState(0);
 
   useEffect(() => {
-    getRedirectResult(auth).catch(console.log);
-
     const unsub = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
 
@@ -34,7 +37,11 @@ export default function Home() {
         const walletRef = doc(db, "wallets", currentUser.uid);
 
         onSnapshot(walletRef, (snap) => {
-          setBalance(snap.exists() ? snap.data().balance || 0 : 0);
+          if (snap.exists()) {
+            setBalance(snap.data().balance || 0);
+          } else {
+            setBalance(0);
+          }
         });
       }
     });
@@ -43,7 +50,12 @@ export default function Home() {
   }, []);
 
   const login = async () => {
-    await signInWithRedirect(auth, provider);
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      console.log(error);
+      alert(error.message);
+    }
   };
 
   const logout = async () => {
@@ -67,6 +79,7 @@ export default function Home() {
     });
 
     alert("Deposit Request Sent ✅");
+
     setAmount("");
     setUtr("");
     setShowAdd(false);
@@ -97,8 +110,14 @@ export default function Home() {
 
       <div className="border border-pink-500 bg-zinc-900 rounded-2xl p-6 text-center">
         <p className="text-2xl">Wallet Balance</p>
-        <h2 className="text-5xl text-green-400 mt-2">₹{balance}</h2>
-        <p className="text-gray-400 mt-3">{user.email}</p>
+
+        <h2 className="text-5xl text-green-400 mt-2">
+          ₹{balance}
+        </h2>
+
+        <p className="text-gray-400 mt-3">
+          {user.email}
+        </p>
 
         <button
           onClick={() => setShowAdd(true)}
@@ -117,7 +136,9 @@ export default function Home() {
 
       {showAdd && (
         <div className="mt-8 border border-pink-500 p-5 rounded-2xl bg-zinc-900 text-center">
-          <h2 className="text-pink-500 text-5xl mb-5">Add Balance</h2>
+          <h2 className="text-pink-500 text-5xl mb-5">
+            Add Balance
+          </h2>
 
           <img
             src="/qr.jpg"
