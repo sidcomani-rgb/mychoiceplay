@@ -1,118 +1,56 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 
-import {
-  collection,
-  doc,
-  increment,
-  onSnapshot,
-  orderBy,
-  query,
-  setDoc,
-  updateDoc,
-} from "firebase/firestore";
-
-type Deposit = {
+type UserData = {
   id: string;
-  uid?: string;
   name?: string;
   email?: string;
-  amount?: number;
-  utr?: string;
-  status?: string;
+  balance?: number;
 };
 
 export default function AdminPage() {
-  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [users, setUsers] = useState<UserData[]>([]);
 
   useEffect(() => {
-    const q = query(collection(db, "deposits"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(collection(db, "users"), (snap) => {
+      const list = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as UserData[];
 
-    const unsub = onSnapshot(q, (snapshot) => {
-      const list = snapshot.docs.map((item) => ({
-        id: item.id,
-        ...item.data(),
-      })) as Deposit[];
-
-      setDeposits(list);
+      setUsers(list);
     });
 
     return () => unsub();
   }, []);
 
-  const approveDeposit = async (dep: Deposit) => {
-    if (!dep.uid || !dep.amount) {
-      alert("UID or amount missing");
-      return;
-    }
-
-    await updateDoc(doc(db, "deposits", dep.id), {
-      status: "approved",
-    });
-
-    await setDoc(
-      doc(db, "wallets", dep.uid),
-      {
-        balance: increment(dep.amount),
-        email: dep.email || "",
-        name: dep.name || "User",
-      },
-      { merge: true }
-    );
-
-    alert("Deposit Approved ✅");
-  };
-
-  const rejectDeposit = async (id: string) => {
-    await updateDoc(doc(db, "deposits", id), {
-      status: "rejected",
-    });
-
-    alert("Deposit Rejected ❌");
-  };
+  const totalBalance = users.reduce(
+    (total, user) => total + Number(user.balance || 0),
+    0
+  );
 
   return (
-    <main className="min-h-screen bg-black text-white p-5">
-      <h1 className="text-5xl text-pink-500 font-bold mb-10">
-        Admin Panel
-      </h1>
+    <main className="min-h-screen bg-black text-white p-8">
+      <h1 className="text-cyan-400 text-6xl font-bold">ADMIN PANEL 🔥</h1>
 
-      <h2 className="text-3xl text-green-400 mb-5">
-        Add Balance Requests
-      </h2>
+      <div className="bg-zinc-900 p-8 rounded-2xl mt-8">
+        <h2 className="text-2xl">Total Users: {users.length}</h2>
+        <h2 className="text-2xl mt-2">Total Balance: ₹{totalBalance}</h2>
+      </div>
 
-      <div className="space-y-5">
-        {deposits.map((dep) => (
-          <div
-            key={dep.id}
-            className="border border-pink-500 p-5 rounded-2xl bg-zinc-900"
-          >
-            <h3 className="text-4xl font-bold">Amount: ₹{dep.amount}</h3>
+      <h2 className="text-pink-500 text-4xl font-bold mt-10">Users List</h2>
 
-            <p className="text-2xl mt-3">Name: {dep.name}</p>
-            <p className="text-2xl mt-2">Email: {dep.email}</p>
-            <p className="text-2xl mt-2">UTR: {dep.utr}</p>
-            <p className="text-2xl mt-2">Status: {dep.status}</p>
-
-            <div className="flex gap-4 mt-5">
-              <button
-                onClick={() => approveDeposit(dep)}
-                disabled={dep.status === "approved"}
-                className="bg-green-500 text-black px-6 py-3 rounded-full font-bold"
-              >
-                APPROVE
-              </button>
-
-              <button
-                onClick={() => rejectDeposit(dep.id)}
-                disabled={dep.status === "rejected"}
-                className="bg-red-500 text-white px-6 py-3 rounded-full font-bold"
-              >
-                REJECT
-              </button>
-            </div>
+      <div className="mt-6 grid gap-5">
+        {users.map((user) => (
+          <div key={user.id} className="bg-zinc-900 p-6 rounded-2xl border border-pink-500">
+            <h3 className="text-2xl font-bold">{user.name || "No Name"}</h3>
+            <p className="text-xl mt-2">{user.email}</p>
+            <p className="text-3xl text-green-400 mt-4">
+              Balance: ₹{user.balance || 0}
+            </p>
           </div>
         ))}
       </div>

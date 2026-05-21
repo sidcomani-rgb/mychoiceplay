@@ -3,189 +3,306 @@
 import { useEffect, useState } from "react";
 
 import {
-  GoogleAuthProvider,
   signInWithPopup,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
   User,
 } from "firebase/auth";
 
 import {
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot,
   collection,
   addDoc,
-  serverTimestamp,
-  doc,
-  onSnapshot,
 } from "firebase/firestore";
 
 import { auth, db } from "./firebase";
 
-const provider = new GoogleAuthProvider();
-
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [amount, setAmount] = useState("");
-  const [utr, setUtr] = useState("");
   const [balance, setBalance] = useState(0);
 
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [upiId, setUpiId] = useState("");
+
+  // ADMIN MAIL
+  const adminEmail = "manidesigner8489@gmail.com";
+
+  // LOGIN
+  const login = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+
+      const result = await signInWithPopup(auth, provider);
+
+      const loggedUser = result.user;
+
+      const userRef = doc(db, "users", loggedUser.uid);
+
+      const snap = await getDoc(userRef);
+
+      // FIRST LOGIN
+      if (!snap.exists()) {
+        await setDoc(userRef, {
+          name: loggedUser.displayName,
+          email: loggedUser.email,
+          balance: 0,
+        });
+      }
+
+      alert("LOGIN SUCCESS ✅");
+    } catch (error) {
+      console.log(error);
+      alert("LOGIN FAILED ❌");
+    }
+  };
+
+  // LOGOUT
+  const logout = async () => {
+    await signOut(auth);
+  };
+
+  // USER CHECK
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
 
       if (currentUser) {
-        const walletRef = doc(db, "wallets", currentUser.uid);
+        const userRef = doc(db, "users", currentUser.uid);
 
-        onSnapshot(walletRef, (snap) => {
-          if (snap.exists()) {
-            setBalance(snap.data().balance || 0);
-          } else {
-            setBalance(0);
+        // REALTIME BALANCE
+        onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setBalance(docSnap.data().balance);
           }
         });
       }
     });
 
-    return () => unsub();
+    return () => unsubscribe();
   }, []);
 
-  const login = async () => {
-    try {
-      const result = await signInWithPopup(auth, provider);
-      console.log(result.user);
-    } catch (error: any) {
-      console.log(error);
+  // ADD BALANCE
+  const addBalance = async () => {
+    if (!user) return;
 
-      if (error.code === "auth/popup-blocked") {
-        alert("ALLOW POPUP IN CHROME");
-      } else if (error.code === "auth/cancelled-popup-request") {
-        alert("TRY AGAIN SLOWLY");
-      } else {
-        alert(error.message);
-      }
+    const userRef = doc(db, "users", user.uid);
+
+    const snap = await getDoc(userRef);
+
+    if (snap.exists()) {
+      const currentBalance = snap.data().balance || 0;
+
+      await setDoc(userRef, {
+        ...snap.data(),
+        balance: currentBalance + 100,
+      });
+
+      alert("₹100 Added ✅");
     }
   };
 
-  const logout = async () => {
-    await signOut(auth);
-  };
+  // WITHDRAW REQUEST
+  const sendWithdrawRequest = async () => {
+    if (!user) return;
 
-  const submitDeposit = async () => {
-    if (!amount || !utr || !user) {
-      alert("ENTER AMOUNT AND UTR");
+    if (!withdrawAmount || !upiId) {
+      alert("ENTER DETAILS ❌");
       return;
     }
 
-    await addDoc(collection(db, "deposits"), {
-      uid: user.uid,
-      name: user.displayName || "User",
+    await addDoc(collection(db, "withdrawRequests"), {
+      name: user.displayName,
       email: user.email,
-      amount: Number(amount),
-      utr,
+      amount: Number(withdrawAmount),
+      upiId: upiId,
       status: "pending",
-      createdAt: serverTimestamp(),
+      createdAt: new Date(),
     });
 
-    alert("REQUEST SENT");
+    alert("WITHDRAW REQUEST SENT ✅");
 
-    setAmount("");
-    setUtr("");
-    setShowAdd(false);
+    setWithdrawAmount("");
+    setUpiId("");
   };
 
-  if (!user) {
-    return (
-      <main className="min-h-screen bg-black flex flex-col items-center justify-center">
-        <h1 className="text-pink-500 text-6xl font-bold mb-10">
-          MY CHOICE PLAY
-        </h1>
-
-        <button
-          type="button"
-          onClick={login}
-          className="relative z-50 bg-white text-black px-10 py-4 rounded-full text-2xl font-bold cursor-pointer"
-        >
-          LOGIN WITH GOOGLE
-        </button>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-black text-white p-5">
-      <h1 className="text-pink-500 text-5xl font-bold mb-6">
+    <div
+      style={{
+        background: "black",
+        minHeight: "100vh",
+        color: "white",
+        padding: "20px",
+      }}
+    >
+      <h1
+        style={{
+          color: "#ff1493",
+          fontSize: "70px",
+          fontWeight: "bold",
+        }}
+      >
         MY CHOICE PLAY
       </h1>
 
-      <div className="border border-pink-500 bg-zinc-900 rounded-2xl p-6 text-center">
-        <p className="text-2xl">Wallet Balance</p>
-
-        <h2 className="text-5xl text-green-400 mt-2">
-          ₹{balance}
-        </h2>
-
-        <p className="text-gray-400 mt-3">
-          {user.email}
-        </p>
-
+      {!user ? (
         <button
-          onClick={() => setShowAdd(true)}
-          className="w-full bg-green-500 text-black py-4 rounded-full text-2xl font-bold mt-6"
+          onClick={login}
+          style={{
+            padding: "20px 40px",
+            fontSize: "30px",
+            borderRadius: "50px",
+            border: "none",
+            cursor: "pointer",
+            marginTop: "50px",
+          }}
         >
-          ADD BALANCE
+          LOGIN WITH GOOGLE
         </button>
-
-        <button
-          onClick={logout}
-          className="w-full bg-red-500 py-3 rounded-full font-bold mt-4"
+      ) : (
+        <div
+          style={{
+            background: "#111",
+            padding: "30px",
+            borderRadius: "20px",
+            marginTop: "40px",
+          }}
         >
-          LOGOUT
-        </button>
-      </div>
+          <h1>Welcome, {user.displayName}</h1>
 
-      {showAdd && (
-        <div className="mt-8 border border-pink-500 p-5 rounded-2xl bg-zinc-900 text-center">
-          <h2 className="text-pink-500 text-5xl mb-5">
-            Add Balance
-          </h2>
+          <h2>{user.email}</h2>
 
-          <img
-            src="/qr.jpg"
-            alt="QR"
-            className="mx-auto rounded-xl w-[300px] h-[300px] object-cover"
-          />
-
-          <input
-            type="number"
-            placeholder="Enter Amount"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-4 rounded-xl text-black mt-5 text-2xl"
-          />
-
-          <input
-            type="text"
-            placeholder="Enter UTR Number"
-            value={utr}
-            onChange={(e) => setUtr(e.target.value)}
-            className="w-full p-4 rounded-xl text-black mt-5 text-2xl"
-          />
-
-          <button
-            onClick={submitDeposit}
-            className="w-full bg-pink-500 py-4 rounded-full text-2xl mt-5 text-white"
+          <h1
+            style={{
+              color: "#00ff88",
+              fontSize: "70px",
+              marginTop: "30px",
+            }}
           >
-            SUBMIT
-          </button>
+            Balance: ₹{balance}
+          </h1>
 
-          <button
-            onClick={() => setShowAdd(false)}
-            className="w-full bg-red-500 py-4 rounded-full text-2xl mt-5 text-white"
+          {/* WITHDRAW FORM */}
+
+          <div
+            style={{
+              marginTop: "40px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "20px",
+              maxWidth: "400px",
+            }}
           >
-            CLOSE
-          </button>
+            <input
+              type="number"
+              placeholder="Withdraw Amount"
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(e.target.value)}
+              style={{
+                padding: "20px",
+                borderRadius: "10px",
+                border: "none",
+                fontSize: "20px",
+              }}
+            />
+
+            <input
+              type="text"
+              placeholder="Enter UPI ID"
+              value={upiId}
+              onChange={(e) => setUpiId(e.target.value)}
+              style={{
+                padding: "20px",
+                borderRadius: "10px",
+                border: "none",
+                fontSize: "20px",
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "20px",
+              marginTop: "30px",
+              flexWrap: "wrap",
+            }}
+          >
+            {/* ADD BALANCE */}
+            <button
+              onClick={addBalance}
+              style={{
+                background: "#ff1493",
+                color: "white",
+                border: "none",
+                padding: "20px 30px",
+                borderRadius: "50px",
+                fontSize: "25px",
+                fontWeight: "bold",
+                cursor: "pointer",
+              }}
+            >
+              ADD BALANCE
+            </button>
+
+            {/* ADMIN BUTTON */}
+            {user.email === adminEmail && (
+              <button
+                onClick={() => (window.location.href = "/admin")}
+                style={{
+                  background: "#00ffff",
+                  color: "black",
+                  border: "none",
+                  padding: "20px 30px",
+                  borderRadius: "50px",
+                  fontSize: "25px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
+                ADMIN
+              </button>
+            )}
+
+            {/* WITHDRAW */}
+            <button
+              onClick={sendWithdrawRequest}
+              style={{
+                background: "gold",
+                color: "black",
+                border: "none",
+                padding: "20px 30px",
+                borderRadius: "50px",
+                fontSize: "25px",
+                fontWeight: "bold",
+                cursor: "pointer",
+              }}
+            >
+              WITHDRAW
+            </button>
+
+            {/* LOGOUT */}
+            <button
+              onClick={logout}
+              style={{
+                background: "red",
+                color: "white",
+                border: "none",
+                padding: "20px 30px",
+                borderRadius: "50px",
+                fontSize: "25px",
+                fontWeight: "bold",
+                cursor: "pointer",
+              }}
+            >
+              LOGOUT
+            </button>
+          </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
