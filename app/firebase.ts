@@ -1,9 +1,9 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBEXnPWszKzZ7fStwrdMhIxWSitrJETX3Y",
+  apiKey: "AIzaSyBEXnPWsZkZ77fStwrdMhIxWSitrJETX3Y",
   authDomain: "mychoiceplay-ed7ec.firebaseapp.com",
   projectId: "mychoiceplay-ed7ec",
   storageBucket: "mychoiceplay-ed7ec.firebasestorage.app",
@@ -14,5 +14,5 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-
 export const db = getFirestore(app);
+export const provider = new GoogleAuthProvider();
