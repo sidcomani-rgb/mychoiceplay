@@ -1,668 +1,406 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-import {
-  signInWithPopup,
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signOut,
-  User,
-} from "firebase/auth";
-
+import { signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
 import {
   doc,
-  getDoc,
   setDoc,
-  onSnapshot,
-  collection,
+  getDoc,
   addDoc,
+  collection,
   query,
   where,
-  getDocs,
+  onSnapshot,
 } from "firebase/firestore";
-
-import { auth, db } from "./firebase";
+import { auth, provider, db } from "./firebase";
 
 export default function Home() {
-  const [user, setUser] = useState<User | null>(null);
-
+  const [user, setUser] = useState<any>(null);
   const [balance, setBalance] = useState(0);
 
-  const [depositAmount, setDepositAmount] =
-    useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [utr, setUtr] = useState("");
 
-  const [utrNumber, setUtrNumber] =
-    useState("");
-
-  const [withdrawAmount, setWithdrawAmount] =
-    useState("");
-
-  const [upiId, setUpiId] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [upi, setUpi] = useState("");
 
   const [history, setHistory] = useState<any[]>([]);
 
-  const adminEmail =
-    "manidesigner8489@gmail.com";
+  const ADMIN_EMAIL = "manidesigner8489@gmail.com";
 
-  // LOGIN
-  const login = async () => {
-    try {
-      const provider =
-        new GoogleAuthProvider();
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (currentUser) => {
+      if (!currentUser) {
+        setUser(null);
+        return;
+      }
 
-      const result =
-        await signInWithPopup(
-          auth,
-          provider
-        );
+      setUser(currentUser);
 
-      const loggedUser = result.user;
-
-      const userRef = doc(
-        db,
-        "users",
-        loggedUser.uid
-      );
-
+      const userRef = doc(db, "users", currentUser.email!);
       const snap = await getDoc(userRef);
 
       if (!snap.exists()) {
         await setDoc(userRef, {
-          name: loggedUser.displayName,
-          email: loggedUser.email,
+          name: currentUser.displayName,
+          email: currentUser.email,
           balance: 0,
         });
       }
 
-      alert("LOGIN SUCCESS ✅");
-    } catch (error) {
-      console.log(error);
+      onSnapshot(userRef, (s) => {
+        if (s.exists()) setBalance(Number(s.data().balance || 0));
+      });
 
-      alert("LOGIN FAILED ❌");
+      const dq = query(
+        collection(db, "depositRequests"),
+        where("email", "==", currentUser.email)
+      );
+
+      const wq = query(
+        collection(db, "withdrawRequests"),
+        where("email", "==", currentUser.email)
+      );
+
+      onSnapshot(dq, (depositSnap) => {
+        const deposits = depositSnap.docs.map((d) => ({
+          id: d.id,
+          type: "DEPOSIT",
+          ...d.data(),
+        }));
+
+        onSnapshot(wq, (withdrawSnap) => {
+          const withdraws = withdrawSnap.docs.map((d) => ({
+            id: d.id,
+            type: "WITHDRAW",
+            ...d.data(),
+          }));
+
+          setHistory(
+            [...deposits, ...withdraws].sort(
+              (a: any, b: any) => Number(b.createdAt || 0) - Number(a.createdAt || 0)
+            )
+          );
+        });
+      });
+    });
+
+    return () => unsubAuth();
+  }, []);
+
+  const login = async () => {
+    try {
+      await signInWithPopup(auth, provider);
+      alert("LOGIN SUCCESS ✅");
+    } catch (error: any) {
+      alert(error.code || "LOGIN FAILED ❌");
     }
   };
 
-  // LOGOUT
   const logout = async () => {
     await signOut(auth);
   };
 
-  // LOAD USER + BALANCE + HISTORY
-  useEffect(() => {
-    const unsubscribe =
-      onAuthStateChanged(
-        auth,
-        async (currentUser) => {
-          setUser(currentUser);
+  const sendDeposit = async () => {
+    if (!user) return;
 
-          if (currentUser) {
-            // BALANCE
-            const userRef = doc(
-              db,
-              "users",
-              currentUser.uid
-            );
+    if (!depositAmount || !utr) {
+      alert("ENTER DEPOSIT DETAILS ❌");
+      return;
+    }
 
-            onSnapshot(
-              userRef,
-              (docSnap) => {
-                if (docSnap.exists()) {
-                  setBalance(
-                    Number(
-                      docSnap.data()
-                        .balance || 0
-                    )
-                  );
-                }
-              }
-            );
+    await addDoc(collection(db, "depositRequests"), {
+      name: user.displayName,
+      email: user.email,
+      amount: Number(depositAmount),
+      utr,
+      status: "pending",
+      createdAt: Date.now(),
+    });
 
-            // DEPOSIT HISTORY
-            const depositQuery = query(
-              collection(
-                db,
-                "depositRequests"
-              ),
-              where(
-                "email",
-                "==",
-                currentUser.email
-              )
-            );
+    setDepositAmount("");
+    setUtr("");
 
-            const depositSnap =
-              await getDocs(
-                depositQuery
-              );
+    alert("DEPOSIT REQUEST SENT ✅");
+  };
 
-            const depositData =
-              depositSnap.docs.map(
-                (doc) => ({
-                  type: "DEPOSIT",
-                  ...doc.data(),
-                })
-              );
+  const sendWithdraw = async () => {
+    if (!user) return;
 
-            // WITHDRAW HISTORY
-            const withdrawQuery = query(
-              collection(
-                db,
-                "withdrawRequests"
-              ),
-              where(
-                "email",
-                "==",
-                currentUser.email
-              )
-            );
+    if (!withdrawAmount || !upi) {
+      alert("ENTER WITHDRAW DETAILS ❌");
+      return;
+    }
 
-            const withdrawSnap =
-              await getDocs(
-                withdrawQuery
-              );
+    if (Number(withdrawAmount) > balance) {
+      alert("INSUFFICIENT BALANCE ❌");
+      return;
+    }
 
-            const withdrawData =
-              withdrawSnap.docs.map(
-                (doc) => ({
-                  type: "WITHDRAW",
-                  ...doc.data(),
-                })
-              );
+    await addDoc(collection(db, "withdrawRequests"), {
+      name: user.displayName,
+      email: user.email,
+      amount: Number(withdrawAmount),
+      upi,
+      status: "pending",
+      createdAt: Date.now(),
+    });
 
-            const allHistory = [
-              ...depositData,
-              ...withdrawData,
-            ];
+    setWithdrawAmount("");
+    setUpi("");
 
-            setHistory(allHistory);
-          }
-        }
-      );
+    alert("WITHDRAW REQUEST SENT ✅");
+  };
 
-    return () => unsubscribe();
-  }, []);
+  const statusColor = (status: string) => {
+    if (status === "approved") return "lime";
+    if (status === "rejected") return "red";
+    return "yellow";
+  };
 
-  // SEND DEPOSIT
-  const sendDepositRequest =
-    async () => {
-      if (!user) return;
+  const formatDate = (time: any) => {
+    if (!time) return "-";
+    return new Date(Number(time)).toLocaleString();
+  };
 
-      if (
-        !depositAmount ||
-        !utrNumber
-      ) {
-        alert(
-          "ENTER DEPOSIT DETAILS ❌"
-        );
+  if (!user) {
+    return (
+      <div style={styles.loginPage}>
+        <h1 style={styles.title}>MY CHOICE PLAY</h1>
 
-        return;
-      }
-
-      await addDoc(
-        collection(
-          db,
-          "depositRequests"
-        ),
-        {
-          name: user.displayName,
-          email: user.email,
-          amount:
-            Number(depositAmount),
-          utr: utrNumber,
-          status: "pending",
-          createdAt: new Date(),
-        }
-      );
-
-      alert(
-        "DEPOSIT REQUEST SENT ✅"
-      );
-
-      setDepositAmount("");
-      setUtrNumber("");
-    };
-
-  // SEND WITHDRAW
-  const sendWithdrawRequest =
-    async () => {
-      if (!user) return;
-
-      if (
-        !withdrawAmount ||
-        !upiId
-      ) {
-        alert(
-          "ENTER WITHDRAW DETAILS ❌"
-        );
-
-        return;
-      }
-
-      if (
-        Number(withdrawAmount) >
-        balance
-      ) {
-        alert(
-          "INSUFFICIENT BALANCE ❌"
-        );
-
-        return;
-      }
-
-      await addDoc(
-        collection(
-          db,
-          "withdrawRequests"
-        ),
-        {
-          name: user.displayName,
-          email: user.email,
-          amount:
-            Number(withdrawAmount),
-          upi: upiId,
-          status: "pending",
-          createdAt: new Date(),
-        }
-      );
-
-      alert(
-        "WITHDRAW REQUEST SENT ✅"
-      );
-
-      setWithdrawAmount("");
-      setUpiId("");
-    };
-
-  return (
-    <div
-      style={{
-        background: "#000",
-        minHeight: "100vh",
-        padding: "20px",
-        color: "white",
-      }}
-    >
-      <h1
-        style={{
-          color: "#ff1493",
-          fontSize: "60px",
-          fontWeight: "bold",
-        }}
-      >
-        MY CHOICE PLAY
-      </h1>
-
-      {!user ? (
-        <button
-          onClick={login}
-          style={{
-            padding: "18px 35px",
-            fontSize: "28px",
-            borderRadius: "50px",
-            border:
-              "2px solid white",
-            background: "black",
-            color: "white",
-            cursor: "pointer",
-            marginTop: "50px",
-          }}
-        >
+        <button onClick={login} style={styles.loginBtn}>
           LOGIN WITH GOOGLE
         </button>
-      ) : (
-        <div
-          style={{
-            background: "#111",
-            padding: "30px",
-            borderRadius: "20px",
-            marginTop: "40px",
-          }}
-        >
-          <h2>
-            Welcome,{" "}
-            {user.displayName}
-          </h2>
+      </div>
+    );
+  }
 
-          <p>{user.email}</p>
+  return (
+    <main style={styles.page}>
+      <h1 style={styles.title}>MY CHOICE PLAY</h1>
 
-          <h1
-            style={{
-              color: "#00ff88",
-              fontSize: "60px",
-              marginTop: "25px",
-            }}
-          >
-            Balance: ₹{balance}
-          </h1>
+      <section style={styles.card}>
+        <p>Welcome, {user.displayName}</p>
+        <p>{user.email}</p>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: "25px",
-              marginTop: "35px",
-            }}
-          >
-            {/* DEPOSIT */}
-            <div
-              style={{
-                background: "#000",
-                padding: "25px",
-                borderRadius: "18px",
-                border:
-                  "1px solid #ff1493",
-              }}
-            >
-              <h2
-                style={{
-                  color: "#ff1493",
-                }}
-              >
-                Add Balance Request
-              </h2>
+        <h1 style={styles.balance}>Balance: ₹{balance}</h1>
 
-              <input
-                type="number"
-                placeholder="Enter Amount"
-                value={depositAmount}
-                onChange={(e) =>
-                  setDepositAmount(
-                    e.target.value
-                  )
-                }
-                style={{
-                  width: "100%",
-                  padding: "15px",
-                  marginTop: "15px",
-                  borderRadius:
-                    "10px",
-                  fontSize: "18px",
-                  color: "#000",
-                  background: "#fff",
-                  fontWeight:
-                    "bold",
-                  caretColor:
-                    "#000",
-                  outline: "none",
-                  border: "none",
-                }}
-              />
+        <div style={styles.grid}>
+          <div style={styles.depositBox}>
+            <h3 style={{ color: "#ff1493" }}>Add Balance Request</h3>
 
-              <input
-                type="text"
-                placeholder="Enter UTR Number"
-                value={utrNumber}
-                onChange={(e) =>
-                  setUtrNumber(
-                    e.target.value
-                  )
-                }
-                style={{
-                  width: "100%",
-                  padding: "15px",
-                  marginTop: "15px",
-                  borderRadius:
-                    "10px",
-                  fontSize: "18px",
-                  color: "#000",
-                  background: "#fff",
-                  fontWeight:
-                    "bold",
-                  caretColor:
-                    "#000",
-                  outline: "none",
-                  border: "none",
-                }}
-              />
+            <input
+              placeholder="Enter Amount"
+              value={depositAmount}
+              onChange={(e) => setDepositAmount(e.target.value)}
+              style={styles.input}
+            />
 
-              <button
-                onClick={
-                  sendDepositRequest
-                }
-                style={{
-                  background:
-                    "#ff1493",
-                  color: "white",
-                  border: "none",
-                  padding:
-                    "15px 25px",
-                  borderRadius:
-                    "50px",
-                  fontSize: "20px",
-                  fontWeight:
-                    "bold",
-                  cursor: "pointer",
-                  marginTop: "20px",
-                }}
-              >
-                SEND DEPOSIT
-              </button>
-            </div>
+            <input
+              placeholder="Enter UTR Number"
+              value={utr}
+              onChange={(e) => setUtr(e.target.value)}
+              style={styles.input}
+            />
 
-            {/* WITHDRAW */}
-            <div
-              style={{
-                background: "#000",
-                padding: "25px",
-                borderRadius: "18px",
-                border:
-                  "1px solid gold",
-              }}
-            >
-              <h2
-                style={{
-                  color: "gold",
-                }}
-              >
-                Withdraw Request
-              </h2>
-
-              <input
-                type="number"
-                placeholder="Withdraw Amount"
-                value={
-                  withdrawAmount
-                }
-                onChange={(e) =>
-                  setWithdrawAmount(
-                    e.target.value
-                  )
-                }
-                style={{
-                  width: "100%",
-                  padding: "15px",
-                  marginTop: "15px",
-                  borderRadius:
-                    "10px",
-                  fontSize: "18px",
-                  color: "#000",
-                  background: "#fff",
-                  fontWeight:
-                    "bold",
-                  caretColor:
-                    "#000",
-                  outline: "none",
-                  border: "none",
-                }}
-              />
-
-              <input
-                type="text"
-                placeholder="Enter UPI ID"
-                value={upiId}
-                onChange={(e) =>
-                  setUpiId(
-                    e.target.value
-                  )
-                }
-                style={{
-                  width: "100%",
-                  padding: "15px",
-                  marginTop: "15px",
-                  borderRadius:
-                    "10px",
-                  fontSize: "18px",
-                  color: "#000",
-                  background: "#fff",
-                  fontWeight:
-                    "bold",
-                  caretColor:
-                    "#000",
-                  outline: "none",
-                  border: "none",
-                }}
-              />
-
-              <button
-                onClick={
-                  sendWithdrawRequest
-                }
-                style={{
-                  background: "gold",
-                  color: "black",
-                  border: "none",
-                  padding:
-                    "15px 25px",
-                  borderRadius:
-                    "50px",
-                  fontSize: "20px",
-                  fontWeight:
-                    "bold",
-                  cursor: "pointer",
-                  marginTop: "20px",
-                }}
-              >
-                SEND WITHDRAW
-              </button>
-            </div>
+            <button onClick={sendDeposit} style={styles.depositBtn}>
+              SEND DEPOSIT
+            </button>
           </div>
 
-          {/* HISTORY */}
-          <div
-            style={{
-              marginTop: "40px",
-            }}
-          >
-            <h1
-              style={{
-                color: "#00e5ff",
-                marginBottom:
-                  "20px",
-              }}
-            >
-              TRANSACTION HISTORY
-            </h1>
+          <div style={styles.withdrawBox}>
+            <h3 style={{ color: "gold" }}>Withdraw Request</h3>
 
-            {history.length === 0 ? (
-              <div
-                style={{
-                  background:
-                    "#000",
-                  padding: "20px",
-                  borderRadius:
-                    "15px",
-                }}
-              >
-                No history found
-              </div>
-            ) : (
-              history.map(
-                (item, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      background:
-                        "#000",
-                      padding:
-                        "20px",
-                      borderRadius:
-                        "15px",
-                      marginBottom:
-                        "15px",
-                      border:
-                        item.type ===
-                        "DEPOSIT"
-                          ? "1px solid #ff1493"
-                          : "1px solid gold",
-                    }}
-                  >
-                    <h2>
-                      {item.type}
-                    </h2>
+            <input
+              placeholder="Withdraw Amount"
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(e.target.value)}
+              style={styles.input}
+            />
 
-                    <p>
-                      Amount: ₹
-                      {item.amount}
-                    </p>
+            <input
+              placeholder="Enter UPI ID"
+              value={upi}
+              onChange={(e) => setUpi(e.target.value)}
+              style={styles.input}
+            />
 
-                    <p>
-                      Status:{" "}
-                      {item.status}
-                    </p>
-                  </div>
-                )
-              )
-            )}
-          </div>
-
-          {/* BUTTONS */}
-          <div
-            style={{
-              display: "flex",
-              gap: "20px",
-              marginTop: "35px",
-              flexWrap: "wrap",
-            }}
-          >
-            {user.email ===
-              adminEmail && (
-              <button
-                onClick={() =>
-                  (window.location.href =
-                    "/admin")
-                }
-                style={{
-                  background:
-                    "#00ffff",
-                  color: "black",
-                  border: "none",
-                  padding:
-                    "18px 30px",
-                  borderRadius:
-                    "50px",
-                  fontSize: "22px",
-                  fontWeight:
-                    "bold",
-                  cursor: "pointer",
-                }}
-              >
-                ADMIN
-              </button>
-            )}
-
-            <button
-              onClick={logout}
-              style={{
-                background: "red",
-                color: "white",
-                border: "none",
-                padding:
-                  "18px 30px",
-                borderRadius:
-                  "50px",
-                fontSize: "22px",
-                fontWeight:
-                  "bold",
-                cursor: "pointer",
-              }}
-            >
-              LOGOUT
+            <button onClick={sendWithdraw} style={styles.withdrawBtn}>
+              SEND WITHDRAW
             </button>
           </div>
         </div>
-      )}
-    </div>
+
+        <h2 style={styles.historyTitle}>TRANSACTION HISTORY</h2>
+
+        {history.length === 0 ? (
+          <p>No Transactions</p>
+        ) : (
+          history.map((item, index) => (
+            <div
+              key={index}
+              style={{
+                ...styles.historyCard,
+                borderColor: item.type === "DEPOSIT" ? "#ff1493" : "gold",
+              }}
+            >
+              <h3>{item.type}</h3>
+              <p>Amount: ₹{item.amount}</p>
+
+              {item.type === "DEPOSIT" ? (
+                <p>UTR: {item.utr}</p>
+              ) : (
+                <p>UPI: {item.upi}</p>
+              )}
+
+              <p>
+                Status:{" "}
+                <b style={{ color: statusColor(item.status) }}>
+                  {item.status}
+                </b>
+              </p>
+
+              <p>Date: {formatDate(item.createdAt)}</p>
+            </div>
+          ))
+        )}
+
+        <div style={styles.btnRow}>
+          {user.email === ADMIN_EMAIL && (
+            <button
+              onClick={() => (window.location.href = "/admin")}
+              style={styles.adminBtn}
+            >
+              ADMIN
+            </button>
+          )}
+
+          <button onClick={logout} style={styles.logoutBtn}>
+            LOGOUT
+          </button>
+        </div>
+      </section>
+    </main>
   );
 }
+
+const styles: any = {
+  loginPage: {
+    background: "black",
+    minHeight: "100vh",
+    color: "white",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  page: {
+    background: "black",
+    minHeight: "100vh",
+    color: "white",
+    padding: "20px",
+  },
+  title: {
+    color: "#ff1493",
+    fontSize: "60px",
+    fontWeight: "bold",
+  },
+  loginBtn: {
+    padding: "20px 45px",
+    fontSize: "28px",
+    borderRadius: "50px",
+    border: "3px solid white",
+    background: "black",
+    color: "white",
+    cursor: "pointer",
+  },
+  card: {
+    background: "#111",
+    padding: "25px",
+    borderRadius: "20px",
+    marginTop: "20px",
+  },
+  balance: {
+    color: "#00ff99",
+    fontSize: "55px",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+    gap: "20px",
+  },
+  depositBox: {
+    border: "2px solid #ff1493",
+    padding: "20px",
+    borderRadius: "20px",
+  },
+  withdrawBox: {
+    border: "2px solid gold",
+    padding: "20px",
+    borderRadius: "20px",
+  },
+  input: {
+    width: "100%",
+    padding: "15px",
+    marginTop: "15px",
+    background: "#000",
+    color: "white",
+    border: "1px solid gray",
+    borderRadius: "8px",
+    fontWeight: "bold",
+  },
+  depositBtn: {
+    marginTop: "20px",
+    padding: "14px 28px",
+    borderRadius: "50px",
+    border: "none",
+    background: "#ff1493",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  withdrawBtn: {
+    marginTop: "20px",
+    padding: "14px 28px",
+    borderRadius: "50px",
+    border: "none",
+    background: "gold",
+    color: "black",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  historyTitle: {
+    color: "#00e5ff",
+    marginTop: "35px",
+  },
+  historyCard: {
+    border: "2px solid",
+    padding: "18px",
+    borderRadius: "15px",
+    marginTop: "15px",
+    background: "#050505",
+  },
+  btnRow: {
+    display: "flex",
+    gap: "15px",
+    marginTop: "30px",
+  },
+  adminBtn: {
+    padding: "14px 28px",
+    borderRadius: "50px",
+    border: "none",
+    background: "#00e5ff",
+    color: "black",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  logoutBtn: {
+    padding: "14px 28px",
+    borderRadius: "50px",
+    border: "none",
+    background: "red",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+};

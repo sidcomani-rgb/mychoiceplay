@@ -1,410 +1,361 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { auth, db } from "../firebase";
+
+import { onAuthStateChanged, signOut } from "firebase/auth";
+
 import {
   collection,
-  getDocs,
-  updateDoc,
+  onSnapshot,
   doc,
+  updateDoc,
+  getDoc,
 } from "firebase/firestore";
 
-import { db } from "../firebase";
-
 export default function AdminPage() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [withdrawRequests, setWithdrawRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [depositRequests, setDepositRequests] = useState<any[]>([]);
+  const [withdrawRequests, setWithdrawRequests] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
 
-  // LOAD DATA
-  const loadData = async () => {
-    // USERS
-    const usersSnap = await getDocs(collection(db, "users"));
-
-    const usersData: any[] = [];
-
-    usersSnap.forEach((docu) => {
-      usersData.push({
-        id: docu.id,
-        ...docu.data(),
-      });
-    });
-
-    setUsers(usersData);
-
-    // WITHDRAW REQUESTS
-    const withdrawSnap = await getDocs(
-      collection(db, "withdrawRequests")
-    );
-
-    const withdrawData: any[] = [];
-
-    withdrawSnap.forEach((docu) => {
-      withdrawData.push({
-        id: docu.id,
-        ...docu.data(),
-      });
-    });
-
-    setWithdrawRequests(withdrawData);
-
-    // DEPOSIT REQUESTS
-    const depositSnap = await getDocs(
-      collection(db, "depositRequests")
-    );
-
-    const depositData: any[] = [];
-
-    depositSnap.forEach((docu) => {
-      depositData.push({
-        id: docu.id,
-        ...docu.data(),
-      });
-    });
-
-    setDepositRequests(depositData);
-  };
+  const ADMIN_EMAIL = "manidesigner8489@gmail.com";
 
   useEffect(() => {
-    loadData();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        alert("LOGIN FIRST");
+        window.location.href = "/";
+        return;
+      }
+
+      if (user.email !== ADMIN_EMAIL) {
+        alert("ACCESS DENIED ❌");
+        window.location.href = "/";
+        return;
+      }
+
+      setLoading(false);
+
+      onSnapshot(collection(db, "depositRequests"), (snapshot) => {
+        const data: any[] = [];
+        snapshot.forEach((doc) => {
+          data.push({ id: doc.id, ...doc.data() });
+        });
+        setDepositRequests(data);
+      });
+
+      onSnapshot(collection(db, "withdrawRequests"), (snapshot) => {
+        const data: any[] = [];
+        snapshot.forEach((doc) => {
+          data.push({ id: doc.id, ...doc.data() });
+        });
+        setWithdrawRequests(data);
+      });
+
+      onSnapshot(collection(db, "users"), (snapshot) => {
+        const data: any[] = [];
+        snapshot.forEach((doc) => {
+          data.push({ id: doc.id, ...doc.data() });
+        });
+        setUsers(data);
+      });
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // APPROVE DEPOSIT
   const approveDeposit = async (request: any) => {
-    // UPDATE REQUEST STATUS
-    await updateDoc(
-      doc(db, "depositRequests", request.id),
-      {
-        status: "approved",
-      }
-    );
+    const userRef = doc(db, "users", request.email);
+    const userSnap = await getDoc(userRef);
 
-    // FIND USER
-    const user = users.find(
-      (u) => u.email === request.email
-    );
-
-    if (user) {
-      await updateDoc(doc(db, "users", user.id), {
-        balance:
-          Number(user.balance || 0) +
-          Number(request.amount || 0),
-      });
+    if (!userSnap.exists()) {
+      alert("USER NOT FOUND ❌");
+      return;
     }
+
+    const currentBalance = Number(userSnap.data().balance || 0);
+    const depositAmount = Number(request.amount || 0);
+
+    await updateDoc(userRef, {
+      balance: currentBalance + depositAmount,
+    });
+
+    await updateDoc(doc(db, "depositRequests", request.id), {
+      status: "approved",
+    });
 
     alert("DEPOSIT APPROVED ✅");
-
-    loadData();
   };
 
-  // REJECT DEPOSIT
   const rejectDeposit = async (request: any) => {
-    await updateDoc(
-      doc(db, "depositRequests", request.id),
-      {
-        status: "rejected",
-      }
-    );
+    await updateDoc(doc(db, "depositRequests", request.id), {
+      status: "rejected",
+    });
 
     alert("DEPOSIT REJECTED ❌");
-
-    loadData();
   };
 
-  // APPROVE WITHDRAW
   const approveWithdraw = async (request: any) => {
-    await updateDoc(
-      doc(db, "withdrawRequests", request.id),
-      {
-        status: "approved",
-      }
-    );
+    const userRef = doc(db, "users", request.email);
+    const userSnap = await getDoc(userRef);
 
-    const user = users.find(
-      (u) => u.email === request.email
-    );
-
-    if (user) {
-      await updateDoc(doc(db, "users", user.id), {
-        balance:
-          Number(user.balance || 0) -
-          Number(request.amount || 0),
-      });
+    if (!userSnap.exists()) {
+      alert("USER NOT FOUND ❌");
+      return;
     }
 
-    alert("WITHDRAW APPROVED ✅");
+    const currentBalance = Number(userSnap.data().balance || 0);
+    const withdrawAmount = Number(request.amount || 0);
 
-    loadData();
+    if (currentBalance < withdrawAmount) {
+      alert("LOW BALANCE ❌");
+      return;
+    }
+
+    await updateDoc(userRef, {
+      balance: currentBalance - withdrawAmount,
+    });
+
+    await updateDoc(doc(db, "withdrawRequests", request.id), {
+      status: "approved",
+    });
+
+    alert("WITHDRAW APPROVED ✅");
   };
 
-  // REJECT WITHDRAW
   const rejectWithdraw = async (request: any) => {
-    await updateDoc(
-      doc(db, "withdrawRequests", request.id),
-      {
-        status: "rejected",
-      }
-    );
+    await updateDoc(doc(db, "withdrawRequests", request.id), {
+      status: "rejected",
+    });
 
     alert("WITHDRAW REJECTED ❌");
-
-    loadData();
   };
 
-  const pendingWithdraws = withdrawRequests.filter(
-    (r) => r.status === "pending"
+  const uniqueUsers = Array.from(
+    new Map(users.map((user) => [user.email, user])).values()
   );
 
   const pendingDeposits = depositRequests.filter(
-    (r) => r.status === "pending"
+    (item) => item.status === "pending"
   );
 
-  const totalBalance = users.reduce(
-    (sum, user) =>
-      sum + Number(user.balance || 0),
-    0
+  const pendingWithdraws = withdrawRequests.filter(
+    (item) => item.status === "pending"
   );
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          background: "black",
+          color: "white",
+          height: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          fontSize: "30px",
+        }}
+      >
+        LOADING...
+      </div>
+    );
+  }
 
   return (
     <div
       style={{
-        background: "#000",
+        background: "black",
         minHeight: "100vh",
-        padding: "30px",
+        padding: "20px",
         color: "white",
       }}
     >
-      <h1
-        style={{
-          color: "#00e5ff",
-          fontSize: "60px",
-          fontWeight: "bold",
-        }}
-      >
+      <h1 style={{ color: "#00e5ff", fontSize: "50px" }}>
         ADMIN PANEL 🔥
       </h1>
 
-      {/* TOP CARD */}
+      <button
+        onClick={() => signOut(auth)}
+        style={{
+          background: "red",
+          color: "white",
+          border: "none",
+          padding: "12px 24px",
+          borderRadius: "12px",
+          marginBottom: "25px",
+          cursor: "pointer",
+          fontWeight: "bold",
+        }}
+      >
+        LOGOUT
+      </button>
+
       <div
         style={{
           background: "#111",
-          padding: "25px",
-          borderRadius: "20px",
-          marginTop: "20px",
-          marginBottom: "30px",
+          borderRadius: "18px",
+          padding: "20px",
+          marginBottom: "25px",
         }}
       >
-        <h2>Total Users: {users.length}</h2>
-
-        <h2>Total Balance: ₹{totalBalance}</h2>
-
-        <h2>
-          Pending Withdraw Requests:{" "}
-          {pendingWithdraws.length}
-        </h2>
-
-        <h2>
-          Pending Deposit Requests:{" "}
-          {pendingDeposits.length}
-        </h2>
+        <p>Total Users: {uniqueUsers.length}</p>
+        <p>Pending Deposit Requests: {pendingDeposits.length}</p>
+        <p>Pending Withdraw Requests: {pendingWithdraws.length}</p>
       </div>
 
-      {/* DEPOSIT REQUESTS */}
-      <h1
-        style={{
-          color: "#ff00aa",
-          marginBottom: "20px",
-        }}
-      >
-        Deposit Requests
-      </h1>
+      <h2 style={{ color: "#ff00aa" }}>Deposit Requests</h2>
 
-      {pendingDeposits.length === 0 ? (
-        <div
-          style={{
-            background: "#111",
-            padding: "20px",
-            borderRadius: "15px",
-            border: "1px solid #ff00aa",
-            marginBottom: "40px",
-          }}
-        >
-          No pending deposit requests ✅
-        </div>
-      ) : (
-        pendingDeposits.map((req, index) => (
-          <div
-            key={index}
-            style={{
-              background: "#111",
-              padding: "20px",
-              borderRadius: "15px",
-              border: "1px solid #ff00aa",
-              marginBottom: "20px",
-            }}
-          >
-            <h1>Amount: ₹{req.amount}</h1>
-
-            <p>Name: {req.name}</p>
-
-            <p>Email: {req.email}</p>
-
-            <p>UTR ID: {req.utr}</p>
-
-            <p>Status: {req.status}</p>
-
-            <button
-              onClick={() =>
-                approveDeposit(req)
-              }
-              style={{
-                background: "lime",
-                color: "#000",
-                border: "none",
-                padding: "12px 25px",
-                borderRadius: "10px",
-                fontWeight: "bold",
-                marginRight: "10px",
-                cursor: "pointer",
-              }}
-            >
-              APPROVE
-            </button>
-
-            <button
-              onClick={() =>
-                rejectDeposit(req)
-              }
-              style={{
-                background: "red",
-                color: "#fff",
-                border: "none",
-                padding: "12px 25px",
-                borderRadius: "10px",
-                fontWeight: "bold",
-                cursor: "pointer",
-              }}
-            >
-              REJECT
-            </button>
-          </div>
-        ))
-      )}
-
-      {/* WITHDRAW REQUESTS */}
-      <h1
-        style={{
-          color: "gold",
-          marginBottom: "20px",
-        }}
-      >
-        Withdraw Requests
-      </h1>
-
-      {pendingWithdraws.length === 0 ? (
-        <div
-          style={{
-            background: "#111",
-            padding: "20px",
-            borderRadius: "15px",
-            border: "1px solid gold",
-            marginBottom: "40px",
-          }}
-        >
-          No pending withdraw requests ✅
-        </div>
-      ) : (
-        pendingWithdraws.map((req, index) => (
-          <div
-            key={index}
-            style={{
-              background: "#111",
-              padding: "20px",
-              borderRadius: "15px",
-              border: "1px solid gold",
-              marginBottom: "20px",
-            }}
-          >
-            <h1>Amount: ₹{req.amount}</h1>
-
-            <p>Name: {req.name}</p>
-
-            <p>Email: {req.email}</p>
-
-            <p>UPI ID: {req.upi}</p>
-
-            <p>Status: {req.status}</p>
-
-            <button
-              onClick={() =>
-                approveWithdraw(req)
-              }
-              style={{
-                background: "lime",
-                color: "#000",
-                border: "none",
-                padding: "12px 25px",
-                borderRadius: "10px",
-                fontWeight: "bold",
-                marginRight: "10px",
-                cursor: "pointer",
-              }}
-            >
-              APPROVE
-            </button>
-
-            <button
-              onClick={() =>
-                rejectWithdraw(req)
-              }
-              style={{
-                background: "red",
-                color: "#fff",
-                border: "none",
-                padding: "12px 25px",
-                borderRadius: "10px",
-                fontWeight: "bold",
-                cursor: "pointer",
-              }}
-            >
-              REJECT
-            </button>
-          </div>
-        ))
-      )}
-
-      {/* USERS */}
-      <h1
-        style={{
-          color: "#ff00aa",
-          marginTop: "40px",
-          marginBottom: "20px",
-        }}
-      >
-        Users List
-      </h1>
-
-      {users.map((user, index) => (
+      {depositRequests.map((item, index) => (
         <div
           key={index}
           style={{
-            background: "#111",
+            border: "2px solid #ff00aa",
             padding: "20px",
             borderRadius: "15px",
-            border: "1px solid #ff00aa",
             marginBottom: "20px",
+            background: "#050505",
           }}
         >
-          <h2>{user.name}</h2>
+          <p>Amount: ₹{item.amount}</p>
+          <p>Name: {item.name}</p>
+          <p>Email: {item.email}</p>
+          <p>UTR ID: {item.utr}</p>
+          <p>
+            Status:{" "}
+            <span
+              style={{
+                color:
+                  item.status === "approved"
+                    ? "lime"
+                    : item.status === "rejected"
+                    ? "red"
+                    : "yellow",
+              }}
+            >
+              {item.status}
+            </span>
+          </p>
 
+          {item.status === "pending" && (
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={() => approveDeposit(item)}
+                style={{
+                  background: "lime",
+                  border: "none",
+                  padding: "12px 22px",
+                  borderRadius: "10px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                APPROVE
+              </button>
+
+              <button
+                onClick={() => rejectDeposit(item)}
+                style={{
+                  background: "red",
+                  color: "white",
+                  border: "none",
+                  padding: "12px 22px",
+                  borderRadius: "10px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                REJECT
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <h2 style={{ color: "yellow" }}>Withdraw Requests</h2>
+
+      {withdrawRequests.map((item, index) => (
+        <div
+          key={index}
+          style={{
+            border: "2px solid yellow",
+            padding: "20px",
+            borderRadius: "15px",
+            marginBottom: "20px",
+            background: "#050505",
+          }}
+        >
+          <p>Amount: ₹{item.amount}</p>
+          <p>Name: {item.name}</p>
+          <p>Email: {item.email}</p>
+          <p>UPI ID: {item.upi}</p>
+          <p>
+            Status:{" "}
+            <span
+              style={{
+                color:
+                  item.status === "approved"
+                    ? "lime"
+                    : item.status === "rejected"
+                    ? "red"
+                    : "yellow",
+              }}
+            >
+              {item.status}
+            </span>
+          </p>
+
+          {item.status === "pending" && (
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={() => approveWithdraw(item)}
+                style={{
+                  background: "orange",
+                  border: "none",
+                  padding: "12px 22px",
+                  borderRadius: "10px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                APPROVE
+              </button>
+
+              <button
+                onClick={() => rejectWithdraw(item)}
+                style={{
+                  background: "red",
+                  color: "white",
+                  border: "none",
+                  padding: "12px 22px",
+                  borderRadius: "10px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                REJECT
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <h2 style={{ color: "#00ff99" }}>Users List</h2>
+
+      {uniqueUsers.map((user: any, index) => (
+        <div
+          key={index}
+          style={{
+            border: "2px solid #00ff99",
+            padding: "20px",
+            borderRadius: "15px",
+            marginBottom: "20px",
+            background: "#050505",
+          }}
+        >
+          <p>{user.name}</p>
           <p>{user.email}</p>
-
-          <h1
-            style={{
-              color: "#00ff88",
-            }}
-          >
-            Balance: ₹{user.balance || 0}
-          </h1>
+          <p>Balance: ₹{user.balance || 0}</p>
         </div>
       ))}
     </div>
