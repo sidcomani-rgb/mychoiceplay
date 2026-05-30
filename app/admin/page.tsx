@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { auth, db } from "../firebase";
-
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import { db } from "../firebase";
 
 import {
   collection,
@@ -14,56 +13,53 @@ import {
 } from "firebase/firestore";
 
 export default function AdminPage() {
+  const router = useRouter();
+
   const [loading, setLoading] = useState(true);
   const [depositRequests, setDepositRequests] = useState<any[]>([]);
   const [withdrawRequests, setWithdrawRequests] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
 
-  const ADMIN_EMAIL = "manidesigner8489@gmail.com";
-
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        alert("LOGIN FIRST");
-        window.location.href = "/";
-        return;
-      }
+    const adminLoggedIn = localStorage.getItem("adminLoggedIn");
 
-      if (user.email !== ADMIN_EMAIL) {
-        alert("ACCESS DENIED ❌");
-        window.location.href = "/";
-        return;
-      }
+    if (adminLoggedIn !== "true") {
+      alert("PLEASE LOGIN FIRST");
+      router.push("/admin-login");
+      return;
+    }
 
-      setLoading(false);
+    setLoading(false);
 
-      onSnapshot(collection(db, "depositRequests"), (snapshot) => {
-        const data: any[] = [];
-        snapshot.forEach((doc) => {
-          data.push({ id: doc.id, ...doc.data() });
-        });
-        setDepositRequests(data);
-      });
-
-      onSnapshot(collection(db, "withdrawRequests"), (snapshot) => {
-        const data: any[] = [];
-        snapshot.forEach((doc) => {
-          data.push({ id: doc.id, ...doc.data() });
-        });
-        setWithdrawRequests(data);
-      });
-
-      onSnapshot(collection(db, "users"), (snapshot) => {
-        const data: any[] = [];
-        snapshot.forEach((doc) => {
-          data.push({ id: doc.id, ...doc.data() });
-        });
-        setUsers(data);
-      });
+    const unsubDeposit = onSnapshot(collection(db, "depositRequests"), (snapshot) => {
+      const data: any[] = [];
+      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() }));
+      setDepositRequests(data);
     });
 
-    return () => unsubscribe();
-  }, []);
+    const unsubWithdraw = onSnapshot(collection(db, "withdrawRequests"), (snapshot) => {
+      const data: any[] = [];
+      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() }));
+      setWithdrawRequests(data);
+    });
+
+    const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+      const data: any[] = [];
+      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() }));
+      setUsers(data);
+    });
+
+    return () => {
+      unsubDeposit();
+      unsubWithdraw();
+      unsubUsers();
+    };
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("adminLoggedIn");
+    router.push("/admin-login");
+  };
 
   const approveDeposit = async (request: any) => {
     const userRef = doc(db, "users", request.email);
@@ -136,69 +132,24 @@ export default function AdminPage() {
     new Map(users.map((user) => [user.email, user])).values()
   );
 
-  const pendingDeposits = depositRequests.filter(
-    (item) => item.status === "pending"
-  );
-
-  const pendingWithdraws = withdrawRequests.filter(
-    (item) => item.status === "pending"
-  );
+  const pendingDeposits = depositRequests.filter((item) => item.status === "pending");
+  const pendingWithdraws = withdrawRequests.filter((item) => item.status === "pending");
 
   if (loading) {
     return (
-      <div
-        style={{
-          background: "black",
-          color: "white",
-          height: "100vh",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          fontSize: "30px",
-        }}
-      >
-        LOADING...
-      </div>
+      <div style={styles.loading}>LOADING...</div>
     );
   }
 
   return (
-    <div
-      style={{
-        background: "black",
-        minHeight: "100vh",
-        padding: "20px",
-        color: "white",
-      }}
-    >
-      <h1 style={{ color: "#00e5ff", fontSize: "50px" }}>
-        ADMIN PANEL 🔥
-      </h1>
+    <div style={styles.page}>
+      <h1 style={styles.title}>ADMIN PANEL 🔥</h1>
 
-      <button
-        onClick={() => signOut(auth)}
-        style={{
-          background: "red",
-          color: "white",
-          border: "none",
-          padding: "12px 24px",
-          borderRadius: "12px",
-          marginBottom: "25px",
-          cursor: "pointer",
-          fontWeight: "bold",
-        }}
-      >
+      <button onClick={handleLogout} style={styles.logoutBtn}>
         LOGOUT
       </button>
 
-      <div
-        style={{
-          background: "#111",
-          borderRadius: "18px",
-          padding: "20px",
-          marginBottom: "25px",
-        }}
-      >
+      <div style={styles.summaryBox}>
         <p>Total Users: {uniqueUsers.length}</p>
         <p>Pending Deposit Requests: {pendingDeposits.length}</p>
         <p>Pending Withdraw Requests: {pendingWithdraws.length}</p>
@@ -207,64 +158,19 @@ export default function AdminPage() {
       <h2 style={{ color: "#ff00aa" }}>Deposit Requests</h2>
 
       {depositRequests.map((item, index) => (
-        <div
-          key={index}
-          style={{
-            border: "2px solid #ff00aa",
-            padding: "20px",
-            borderRadius: "15px",
-            marginBottom: "20px",
-            background: "#050505",
-          }}
-        >
+        <div key={index} style={styles.depositCard}>
           <p>Amount: ₹{item.amount}</p>
           <p>Name: {item.name}</p>
           <p>Email: {item.email}</p>
           <p>UTR ID: {item.utr}</p>
-          <p>
-            Status:{" "}
-            <span
-              style={{
-                color:
-                  item.status === "approved"
-                    ? "lime"
-                    : item.status === "rejected"
-                    ? "red"
-                    : "yellow",
-              }}
-            >
-              {item.status}
-            </span>
-          </p>
+          <p>Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b></p>
 
           {item.status === "pending" && (
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button
-                onClick={() => approveDeposit(item)}
-                style={{
-                  background: "lime",
-                  border: "none",
-                  padding: "12px 22px",
-                  borderRadius: "10px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                }}
-              >
+            <div style={styles.btnRow}>
+              <button onClick={() => approveDeposit(item)} style={styles.approveBtn}>
                 APPROVE
               </button>
-
-              <button
-                onClick={() => rejectDeposit(item)}
-                style={{
-                  background: "red",
-                  color: "white",
-                  border: "none",
-                  padding: "12px 22px",
-                  borderRadius: "10px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                }}
-              >
+              <button onClick={() => rejectDeposit(item)} style={styles.rejectBtn}>
                 REJECT
               </button>
             </div>
@@ -275,64 +181,19 @@ export default function AdminPage() {
       <h2 style={{ color: "yellow" }}>Withdraw Requests</h2>
 
       {withdrawRequests.map((item, index) => (
-        <div
-          key={index}
-          style={{
-            border: "2px solid yellow",
-            padding: "20px",
-            borderRadius: "15px",
-            marginBottom: "20px",
-            background: "#050505",
-          }}
-        >
+        <div key={index} style={styles.withdrawCard}>
           <p>Amount: ₹{item.amount}</p>
           <p>Name: {item.name}</p>
           <p>Email: {item.email}</p>
           <p>UPI ID: {item.upi}</p>
-          <p>
-            Status:{" "}
-            <span
-              style={{
-                color:
-                  item.status === "approved"
-                    ? "lime"
-                    : item.status === "rejected"
-                    ? "red"
-                    : "yellow",
-              }}
-            >
-              {item.status}
-            </span>
-          </p>
+          <p>Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b></p>
 
           {item.status === "pending" && (
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button
-                onClick={() => approveWithdraw(item)}
-                style={{
-                  background: "orange",
-                  border: "none",
-                  padding: "12px 22px",
-                  borderRadius: "10px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                }}
-              >
+            <div style={styles.btnRow}>
+              <button onClick={() => approveWithdraw(item)} style={styles.withdrawApproveBtn}>
                 APPROVE
               </button>
-
-              <button
-                onClick={() => rejectWithdraw(item)}
-                style={{
-                  background: "red",
-                  color: "white",
-                  border: "none",
-                  padding: "12px 22px",
-                  borderRadius: "10px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                }}
-              >
+              <button onClick={() => rejectWithdraw(item)} style={styles.rejectBtn}>
                 REJECT
               </button>
             </div>
@@ -343,16 +204,7 @@ export default function AdminPage() {
       <h2 style={{ color: "#00ff99" }}>Users List</h2>
 
       {uniqueUsers.map((user: any, index) => (
-        <div
-          key={index}
-          style={{
-            border: "2px solid #00ff99",
-            padding: "20px",
-            borderRadius: "15px",
-            marginBottom: "20px",
-            background: "#050505",
-          }}
-        >
+        <div key={index} style={styles.userCard}>
           <p>{user.name}</p>
           <p>{user.email}</p>
           <p>Balance: ₹{user.balance || 0}</p>
@@ -361,3 +213,97 @@ export default function AdminPage() {
     </div>
   );
 }
+
+function getStatusColor(status: string) {
+  if (status === "approved") return "lime";
+  if (status === "rejected") return "red";
+  return "yellow";
+}
+
+const styles: any = {
+  page: {
+    background: "black",
+    minHeight: "100vh",
+    padding: "20px",
+    color: "white",
+  },
+  loading: {
+    background: "black",
+    color: "white",
+    height: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    fontSize: "30px",
+  },
+  title: {
+    color: "#00e5ff",
+    fontSize: "50px",
+  },
+  logoutBtn: {
+    background: "red",
+    color: "white",
+    border: "none",
+    padding: "12px 24px",
+    borderRadius: "12px",
+    marginBottom: "25px",
+    cursor: "pointer",
+    fontWeight: "bold",
+  },
+  summaryBox: {
+    background: "#111",
+    borderRadius: "18px",
+    padding: "20px",
+    marginBottom: "25px",
+  },
+  depositCard: {
+    border: "2px solid #ff00aa",
+    padding: "20px",
+    borderRadius: "15px",
+    marginBottom: "20px",
+    background: "#050505",
+  },
+  withdrawCard: {
+    border: "2px solid yellow",
+    padding: "20px",
+    borderRadius: "15px",
+    marginBottom: "20px",
+    background: "#050505",
+  },
+  userCard: {
+    border: "2px solid #00ff99",
+    padding: "20px",
+    borderRadius: "15px",
+    marginBottom: "20px",
+    background: "#050505",
+  },
+  btnRow: {
+    display: "flex",
+    gap: "10px",
+  },
+  approveBtn: {
+    background: "lime",
+    border: "none",
+    padding: "12px 22px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: "bold",
+  },
+  withdrawApproveBtn: {
+    background: "orange",
+    border: "none",
+    padding: "12px 22px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: "bold",
+  },
+  rejectBtn: {
+    background: "red",
+    color: "white",
+    border: "none",
+    padding: "12px 22px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: "bold",
+  },
+};
