@@ -11,8 +11,8 @@ export default function AdminLoginPage() {
 
   const login = () => {
     if (
-      username === "admin" &&
-      password === "1234"
+      username === "maniadmin" &&
+      password === "Mani@2026#Secure"
     ) {
       localStorage.setItem("adminLoggedIn", "true");
       alert("ADMIN LOGIN SUCCESS ✅");
