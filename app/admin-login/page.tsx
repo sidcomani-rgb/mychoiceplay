@@ -12,7 +12,7 @@ export default function AdminLoginPage() {
   const login = () => {
     if (
       username === "maniadmin" &&
-      password === "Mani@2026#Secure"
+      password === "mani2026"
     ) {
       localStorage.setItem("adminLoggedIn", "true");
       alert("ADMIN LOGIN SUCCESS ✅");
