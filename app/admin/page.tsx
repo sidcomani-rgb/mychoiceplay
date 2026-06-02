@@ -136,9 +136,7 @@ export default function AdminPage() {
   const pendingWithdraws = withdrawRequests.filter((item) => item.status === "pending");
 
   if (loading) {
-    return (
-      <div style={styles.loading}>LOADING...</div>
-    );
+    return <div style={styles.loading}>LOADING...</div>;
   }
 
   return (
@@ -221,89 +219,16 @@ function getStatusColor(status: string) {
 }
 
 const styles: any = {
-  page: {
-    background: "black",
-    minHeight: "100vh",
-    padding: "20px",
-    color: "white",
-  },
-  loading: {
-    background: "black",
-    color: "white",
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    fontSize: "30px",
-  },
-  title: {
-    color: "#00e5ff",
-    fontSize: "50px",
-  },
-  logoutBtn: {
-    background: "red",
-    color: "white",
-    border: "none",
-    padding: "12px 24px",
-    borderRadius: "12px",
-    marginBottom: "25px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
-  summaryBox: {
-    background: "#111",
-    borderRadius: "18px",
-    padding: "20px",
-    marginBottom: "25px",
-  },
-  depositCard: {
-    border: "2px solid #ff00aa",
-    padding: "20px",
-    borderRadius: "15px",
-    marginBottom: "20px",
-    background: "#050505",
-  },
-  withdrawCard: {
-    border: "2px solid yellow",
-    padding: "20px",
-    borderRadius: "15px",
-    marginBottom: "20px",
-    background: "#050505",
-  },
-  userCard: {
-    border: "2px solid #00ff99",
-    padding: "20px",
-    borderRadius: "15px",
-    marginBottom: "20px",
-    background: "#050505",
-  },
-  btnRow: {
-    display: "flex",
-    gap: "10px",
-  },
-  approveBtn: {
-    background: "lime",
-    border: "none",
-    padding: "12px 22px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
-  withdrawApproveBtn: {
-    background: "orange",
-    border: "none",
-    padding: "12px 22px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
-  rejectBtn: {
-    background: "red",
-    color: "white",
-    border: "none",
-    padding: "12px 22px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
+  page: { background: "black", minHeight: "100vh", padding: "20px", color: "white" },
+  loading: { background: "black", color: "white", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "30px" },
+  title: { color: "#00e5ff", fontSize: "50px" },
+  logoutBtn: { background: "red", color: "white", border: "none", padding: "12px 24px", borderRadius: "12px", marginBottom: "25px", cursor: "pointer", fontWeight: "bold" },
+  summaryBox: { background: "#111", borderRadius: "18px", padding: "20px", marginBottom: "25px" },
+  depositCard: { border: "2px solid #ff00aa", padding: "20px", borderRadius: "15px", marginBottom: "20px", background: "#050505" },
+  withdrawCard: { border: "2px solid yellow", padding: "20px", borderRadius: "15px", marginBottom: "20px", background: "#050505" },
+  userCard: { border: "2px solid #00ff99", padding: "20px", borderRadius: "15px", marginBottom: "20px", background: "#050505" },
+  btnRow: { display: "flex", gap: "10px" },
+  approveBtn: { background: "lime", border: "none", padding: "12px 22px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold" },
+  withdrawApproveBtn: { background: "orange", border: "none", padding: "12px 22px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold" },
+  rejectBtn: { background: "red", color: "white", border: "none", padding: "12px 22px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold" },
 };
