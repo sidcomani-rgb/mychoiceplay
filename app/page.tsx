@@ -35,9 +35,8 @@ export default function Home() {
   const autoResultRoundRef = useRef("");
   const ADMIN_EMAIL = "manidesigner8489@gmail.com";
 
-  const getCurrentRoundId = () => {
-    return Math.floor(Date.now() / (ROUND_TIME * 1000)).toString();
-  };
+  const getCurrentRoundId = () =>
+    Math.floor(Date.now() / (ROUND_TIME * 1000)).toString();
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (currentUser) => {
@@ -63,8 +62,15 @@ export default function Home() {
         if (s.exists()) setBalance(Number(s.data().balance || 0));
       });
 
-      const dq = query(collection(db, "depositRequests"), where("email", "==", currentUser.email));
-      const wq = query(collection(db, "withdrawRequests"), where("email", "==", currentUser.email));
+      const dq = query(
+        collection(db, "depositRequests"),
+        where("email", "==", currentUser.email)
+      );
+
+      const wq = query(
+        collection(db, "withdrawRequests"),
+        where("email", "==", currentUser.email)
+      );
 
       onSnapshot(dq, (depositSnap) => {
         const deposits = depositSnap.docs.map((d) => ({
@@ -82,7 +88,8 @@ export default function Home() {
 
           setHistory(
             [...deposits, ...withdraws].sort(
-              (a: any, b: any) => Number(b.createdAt || 0) - Number(a.createdAt || 0)
+              (a: any, b: any) =>
+                Number(b.createdAt || 0) - Number(a.createdAt || 0)
             )
           );
         });
@@ -97,7 +104,11 @@ export default function Home() {
       onSnapshot(collection(db, "results"), (snap) => {
         const data: any[] = [];
         snap.forEach((d) => data.push({ id: d.id, ...d.data() }));
-        const sorted = data.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+
+        const sorted = data.sort(
+          (a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)
+        );
+
         setResults(sorted);
         if (sorted.length > 0) setResult(sorted[0].winner);
       });
@@ -138,7 +149,8 @@ export default function Home() {
 
   const sendWithdraw = async () => {
     if (!withdrawAmount || !upi) return alert("ENTER WITHDRAW DETAILS ❌");
-    if (Number(withdrawAmount) > balance) return alert("INSUFFICIENT BALANCE ❌");
+    if (Number(withdrawAmount) > balance)
+      return alert("INSUFFICIENT BALANCE ❌");
 
     await addDoc(collection(db, "withdrawRequests"), {
       name: user.displayName,
@@ -182,14 +194,12 @@ export default function Home() {
     alert("BET PLACED ✅");
   };
 
-  const calculateResult = async () => {
-    const currentRoundId = getCurrentRoundId();
-
-    const oldResultSnap = await getDoc(doc(db, "results", currentRoundId));
+  const settleRound = async (roundId: string, showAlert = false) => {
+    const oldResultSnap = await getDoc(doc(db, "results", roundId));
     if (oldResultSnap.exists()) return;
 
     const pendingBets = bets.filter(
-      (b) => b.status === "pending" && b.roundId === currentRoundId
+      (b) => b.status === "pending" && b.roundId === roundId
     );
 
     if (pendingBets.length === 0) return;
@@ -206,8 +216,8 @@ export default function Home() {
       totals[a] <= totals[b] ? a : b
     );
 
-    await setDoc(doc(db, "results", currentRoundId), {
-      roundId: currentRoundId,
+    await setDoc(doc(db, "results", roundId), {
+      roundId,
       winner: winnerColor,
       totalRed: totals.RED || 0,
       totalGreen: totals.GREEN || 0,
@@ -241,7 +251,7 @@ export default function Home() {
       }
     }
 
-    alert(`AUTO RESULT: ${winnerColor} ✅`);
+    if (showAlert) alert(`AUTO RESULT: ${winnerColor} ✅`);
   };
 
   useEffect(() => {
@@ -250,15 +260,30 @@ export default function Home() {
       const left = ROUND_TIME - (now % ROUND_TIME);
       setTimeLeft(left);
 
-      const roundId = getCurrentRoundId();
+      if (user?.email !== ADMIN_EMAIL) return;
 
-      if (
-        left <= 2 &&
-        user?.email === ADMIN_EMAIL &&
-        autoResultRoundRef.current !== roundId
-      ) {
-        autoResultRoundRef.current = roundId;
-        calculateResult();
+      const currentRoundId = getCurrentRoundId();
+
+      const oldPendingRoundIds = Array.from(
+        new Set(
+          bets
+            .filter(
+              (b) =>
+                b.status === "pending" &&
+                b.roundId &&
+                Number(b.roundId) < Number(currentRoundId)
+            )
+            .map((b) => b.roundId)
+        )
+      );
+
+      oldPendingRoundIds.forEach((roundId) => {
+        settleRound(roundId, false);
+      });
+
+      if (left <= 2 && autoResultRoundRef.current !== currentRoundId) {
+        autoResultRoundRef.current = currentRoundId;
+        settleRound(currentRoundId, true);
       }
     }, 1000);
 
@@ -275,7 +300,9 @@ export default function Home() {
     return (
       <div style={styles.loginPage}>
         <h1 style={styles.title}>MY CHOICE PLAY</h1>
-        <button onClick={login} style={styles.loginBtn}>LOGIN WITH GOOGLE</button>
+        <button onClick={login} style={styles.loginBtn}>
+          LOGIN WITH GOOGLE
+        </button>
       </div>
     );
   }
@@ -321,21 +348,47 @@ export default function Home() {
           style={styles.input}
         />
 
-        <button onClick={placeBet} style={styles.betBtn}>PLACE BET</button>
+        <button onClick={placeBet} style={styles.betBtn}>
+          PLACE BET
+        </button>
 
         <div style={styles.grid}>
           <div style={styles.depositBox}>
             <h3 style={{ color: "#ff1493" }}>Add Balance Request</h3>
-            <input placeholder="Enter Amount" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} style={styles.input} />
-            <input placeholder="Enter UTR Number" value={utr} onChange={(e) => setUtr(e.target.value)} style={styles.input} />
-            <button onClick={sendDeposit} style={styles.depositBtn}>SEND DEPOSIT</button>
+            <input
+              placeholder="Enter Amount"
+              value={depositAmount}
+              onChange={(e) => setDepositAmount(e.target.value)}
+              style={styles.input}
+            />
+            <input
+              placeholder="Enter UTR Number"
+              value={utr}
+              onChange={(e) => setUtr(e.target.value)}
+              style={styles.input}
+            />
+            <button onClick={sendDeposit} style={styles.depositBtn}>
+              SEND DEPOSIT
+            </button>
           </div>
 
           <div style={styles.withdrawBox}>
             <h3 style={{ color: "gold" }}>Withdraw Request</h3>
-            <input placeholder="Withdraw Amount" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} style={styles.input} />
-            <input placeholder="Enter UPI ID" value={upi} onChange={(e) => setUpi(e.target.value)} style={styles.input} />
-            <button onClick={sendWithdraw} style={styles.withdrawBtn}>SEND WITHDRAW</button>
+            <input
+              placeholder="Withdraw Amount"
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(e.target.value)}
+              style={styles.input}
+            />
+            <input
+              placeholder="Enter UPI ID"
+              value={upi}
+              onChange={(e) => setUpi(e.target.value)}
+              style={styles.input}
+            />
+            <button onClick={sendWithdraw} style={styles.withdrawBtn}>
+              SEND WITHDRAW
+            </button>
           </div>
         </div>
 
@@ -345,11 +398,19 @@ export default function Home() {
           <p>No Transactions</p>
         ) : (
           history.map((item, index) => (
-            <div key={index} style={{ ...styles.historyCard, borderColor: item.type === "DEPOSIT" ? "#ff1493" : "gold" }}>
+            <div
+              key={index}
+              style={{
+                ...styles.historyCard,
+                borderColor: item.type === "DEPOSIT" ? "#ff1493" : "gold",
+              }}
+            >
               <h3>{item.type}</h3>
               <p>Amount: ₹{item.amount}</p>
               <p>{item.type === "DEPOSIT" ? `UTR: ${item.utr}` : `UPI: ${item.upi}`}</p>
-              <p>Status: <b style={{ color: statusColor(item.status) }}>{item.status}</b></p>
+              <p>
+                Status: <b style={{ color: statusColor(item.status) }}>{item.status}</b>
+              </p>
               <p>Date: {new Date(Number(item.createdAt)).toLocaleString()}</p>
             </div>
           ))
@@ -365,7 +426,9 @@ export default function Home() {
               <p>Round: {bet.roundId}</p>
               <p>Color: {bet.color}</p>
               <p>Amount: ₹{bet.amount}</p>
-              <p>Status: <b style={{ color: statusColor(bet.status) }}>{bet.status}</b></p>
+              <p>
+                Status: <b style={{ color: statusColor(bet.status) }}>{bet.status}</b>
+              </p>
               <p>Result: {bet.result || "-"}</p>
             </div>
           ))}
@@ -375,7 +438,9 @@ export default function Home() {
         {results.slice(0, 10).map((r, index) => (
           <div key={index} style={styles.resultCard}>
             <p>Round: {r.roundId}</p>
-            <p>Winner: <b style={{ color: "lime" }}>{r.winner}</b></p>
+            <p>
+              Winner: <b style={{ color: "lime" }}>{r.winner}</b>
+            </p>
             <p>RED Total: ₹{r.totalRed || 0}</p>
             <p>GREEN Total: ₹{r.totalGreen || 0}</p>
             <p>PINK Total: ₹{r.totalPink || 0}</p>
@@ -385,11 +450,16 @@ export default function Home() {
 
         <div style={styles.btnRow}>
           {user.email === ADMIN_EMAIL && (
-            <button onClick={() => (window.location.href = "/admin-login")} style={styles.adminBtn}>
+            <button
+              onClick={() => (window.location.href = "/admin-login")}
+              style={styles.adminBtn}
+            >
               ADMIN
             </button>
           )}
-          <button onClick={logout} style={styles.logoutBtn}>LOGOUT</button>
+          <button onClick={logout} style={styles.logoutBtn}>
+            LOGOUT
+          </button>
         </div>
       </section>
     </main>
@@ -397,27 +467,154 @@ export default function Home() {
 }
 
 const styles: any = {
-  loginPage: { background: "black", minHeight: "100vh", color: "white", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" },
-  page: { background: "black", minHeight: "100vh", color: "white", padding: "20px" },
-  title: { color: "#ff1493", fontSize: "55px", fontWeight: "bold" },
-  card: { background: "#111", padding: "25px", borderRadius: "20px" },
-  balance: { color: "#00ff99", fontSize: "50px" },
-  loginBtn: { padding: "18px 40px", borderRadius: "40px", fontSize: "25px", background: "black", color: "white", border: "2px solid white" },
-  gameTitle: { color: "cyan" },
-  colorRow: { display: "flex", gap: "15px", marginBottom: "15px" },
-  colorBtn: { color: "white", padding: "20px 35px", borderRadius: "15px", fontWeight: "bold", cursor: "pointer" },
-  input: { width: "100%", padding: "15px", marginTop: "15px", background: "#000", color: "white", border: "1px solid gray", borderRadius: "8px", fontWeight: "bold" },
-  betBtn: { marginTop: "15px", padding: "14px 30px", background: "cyan", border: "none", borderRadius: "20px", fontWeight: "bold" },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginTop: "25px" },
-  depositBox: { border: "2px solid #ff1493", padding: "20px", borderRadius: "20px" },
-  withdrawBox: { border: "2px solid gold", padding: "20px", borderRadius: "20px" },
-  depositBtn: { marginTop: "20px", padding: "14px 28px", borderRadius: "50px", border: "none", background: "#ff1493", color: "white", fontWeight: "bold" },
-  withdrawBtn: { marginTop: "20px", padding: "14px 28px", borderRadius: "50px", border: "none", background: "gold", color: "black", fontWeight: "bold" },
-  historyTitle: { color: "#00e5ff", marginTop: "35px" },
-  historyCard: { border: "2px solid", padding: "18px", borderRadius: "15px", marginTop: "15px", background: "#050505" },
-  betHistory: { border: "2px solid cyan", padding: "15px", borderRadius: "15px", marginTop: "15px", background: "#050505" },
-  resultCard: { border: "2px solid lime", padding: "15px", borderRadius: "15px", marginTop: "15px", background: "#050505" },
-  btnRow: { display: "flex", gap: "15px", marginTop: "30px" },
-  adminBtn: { padding: "14px 28px", borderRadius: "50px", border: "none", background: "#00e5ff", color: "black", fontWeight: "bold" },
-  logoutBtn: { padding: "14px 28px", borderRadius: "50px", border: "none", background: "red", color: "white", fontWeight: "bold" },
+  loginPage: {
+    background: "black",
+    minHeight: "100vh",
+    color: "white",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  page: {
+    background: "black",
+    minHeight: "100vh",
+    color: "white",
+    padding: "20px",
+  },
+  title: {
+    color: "#ff1493",
+    fontSize: "55px",
+    fontWeight: "bold",
+  },
+  card: {
+    background: "#111",
+    padding: "25px",
+    borderRadius: "20px",
+  },
+  balance: {
+    color: "#00ff99",
+    fontSize: "50px",
+  },
+  loginBtn: {
+    padding: "18px 40px",
+    borderRadius: "40px",
+    fontSize: "25px",
+    background: "black",
+    color: "white",
+    border: "2px solid white",
+  },
+  gameTitle: {
+    color: "cyan",
+  },
+  colorRow: {
+    display: "flex",
+    gap: "15px",
+    marginBottom: "15px",
+  },
+  colorBtn: {
+    color: "white",
+    padding: "20px 35px",
+    borderRadius: "15px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  input: {
+    width: "100%",
+    padding: "15px",
+    marginTop: "15px",
+    background: "#000",
+    color: "white",
+    border: "1px solid gray",
+    borderRadius: "8px",
+    fontWeight: "bold",
+  },
+  betBtn: {
+    marginTop: "15px",
+    padding: "14px 30px",
+    background: "cyan",
+    border: "none",
+    borderRadius: "20px",
+    fontWeight: "bold",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+    gap: "20px",
+    marginTop: "25px",
+  },
+  depositBox: {
+    border: "2px solid #ff1493",
+    padding: "20px",
+    borderRadius: "20px",
+  },
+  withdrawBox: {
+    border: "2px solid gold",
+    padding: "20px",
+    borderRadius: "20px",
+  },
+  depositBtn: {
+    marginTop: "20px",
+    padding: "14px 28px",
+    borderRadius: "50px",
+    border: "none",
+    background: "#ff1493",
+    color: "white",
+    fontWeight: "bold",
+  },
+  withdrawBtn: {
+    marginTop: "20px",
+    padding: "14px 28px",
+    borderRadius: "50px",
+    border: "none",
+    background: "gold",
+    color: "black",
+    fontWeight: "bold",
+  },
+  historyTitle: {
+    color: "#00e5ff",
+    marginTop: "35px",
+  },
+  historyCard: {
+    border: "2px solid",
+    padding: "18px",
+    borderRadius: "15px",
+    marginTop: "15px",
+    background: "#050505",
+  },
+  betHistory: {
+    border: "2px solid cyan",
+    padding: "15px",
+    borderRadius: "15px",
+    marginTop: "15px",
+    background: "#050505",
+  },
+  resultCard: {
+    border: "2px solid lime",
+    padding: "15px",
+    borderRadius: "15px",
+    marginTop: "15px",
+    background: "#050505",
+  },
+  btnRow: {
+    display: "flex",
+    gap: "15px",
+    marginTop: "30px",
+  },
+  adminBtn: {
+    padding: "14px 28px",
+    borderRadius: "50px",
+    border: "none",
+    background: "#00e5ff",
+    color: "black",
+    fontWeight: "bold",
+  },
+  logoutBtn: {
+    padding: "14px 28px",
+    borderRadius: "50px",
+    border: "none",
+    background: "red",
+    color: "white",
+    fontWeight: "bold",
+  },
 };
