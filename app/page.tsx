@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
 import {
   doc,
@@ -15,22 +15,29 @@ import {
 } from "firebase/firestore";
 import { auth, provider, db } from "./firebase";
 
+const ROUND_TIME = 5 * 60;
+
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [balance, setBalance] = useState(0);
-
   const [depositAmount, setDepositAmount] = useState("");
   const [utr, setUtr] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [upi, setUpi] = useState("");
-
   const [history, setHistory] = useState<any[]>([]);
   const [betAmount, setBetAmount] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [bets, setBets] = useState<any[]>([]);
+  const [results, setResults] = useState<any[]>([]);
   const [result, setResult] = useState("");
+  const [timeLeft, setTimeLeft] = useState(ROUND_TIME);
 
+  const autoResultRoundRef = useRef("");
   const ADMIN_EMAIL = "manidesigner8489@gmail.com";
+
+  const getCurrentRoundId = () => {
+    return Math.floor(Date.now() / (ROUND_TIME * 1000)).toString();
+  };
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (currentUser) => {
@@ -56,15 +63,8 @@ export default function Home() {
         if (s.exists()) setBalance(Number(s.data().balance || 0));
       });
 
-      const dq = query(
-        collection(db, "depositRequests"),
-        where("email", "==", currentUser.email)
-      );
-
-      const wq = query(
-        collection(db, "withdrawRequests"),
-        where("email", "==", currentUser.email)
-      );
+      const dq = query(collection(db, "depositRequests"), where("email", "==", currentUser.email));
+      const wq = query(collection(db, "withdrawRequests"), where("email", "==", currentUser.email));
 
       onSnapshot(dq, (depositSnap) => {
         const deposits = depositSnap.docs.map((d) => ({
@@ -92,6 +92,14 @@ export default function Home() {
         const data: any[] = [];
         snap.forEach((d) => data.push({ id: d.id, ...d.data() }));
         setBets(data);
+      });
+
+      onSnapshot(collection(db, "results"), (snap) => {
+        const data: any[] = [];
+        snap.forEach((d) => data.push({ id: d.id, ...d.data() }));
+        const sorted = data.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+        setResults(sorted);
+        if (sorted.length > 0) setResult(sorted[0].winner);
       });
     });
 
@@ -153,6 +161,7 @@ export default function Home() {
     if (Number(betAmount) > balance) return alert("LOW BALANCE ❌");
 
     const userRef = doc(db, "users", user.email);
+
     await updateDoc(userRef, {
       balance: balance - Number(betAmount),
     });
@@ -163,6 +172,8 @@ export default function Home() {
       color: selectedColor,
       amount: Number(betAmount),
       status: "pending",
+      result: "",
+      roundId: getCurrentRoundId(),
       createdAt: Date.now(),
     });
 
@@ -172,19 +183,37 @@ export default function Home() {
   };
 
   const calculateResult = async () => {
-    const pendingBets = bets.filter((b) => b.status === "pending");
+    const currentRoundId = getCurrentRoundId();
 
-    if (pendingBets.length === 0) return alert("NO PENDING BETS ❌");
+    const oldResultSnap = await getDoc(doc(db, "results", currentRoundId));
+    if (oldResultSnap.exists()) return;
 
-    const totals: any = { RED: 0, GREEN: 0, PINK: 0 };
+    const pendingBets = bets.filter(
+      (b) => b.status === "pending" && b.roundId === currentRoundId
+    );
+
+    if (pendingBets.length === 0) return;
+
+    const totals: any = {};
 
     pendingBets.forEach((b) => {
-      totals[b.color] += Number(b.amount || 0);
+      totals[b.color] = (totals[b.color] || 0) + Number(b.amount || 0);
     });
 
-    const winnerColor = Object.keys(totals).reduce((a, b) =>
+    const activeColors = Object.keys(totals);
+
+    const winnerColor = activeColors.reduce((a, b) =>
       totals[a] <= totals[b] ? a : b
     );
+
+    await setDoc(doc(db, "results", currentRoundId), {
+      roundId: currentRoundId,
+      winner: winnerColor,
+      totalRed: totals.RED || 0,
+      totalGreen: totals.GREEN || 0,
+      totalPink: totals.PINK || 0,
+      createdAt: Date.now(),
+    });
 
     setResult(winnerColor);
 
@@ -212,8 +241,29 @@ export default function Home() {
       }
     }
 
-    alert(`RESULT: ${winnerColor} ✅`);
+    alert(`AUTO RESULT: ${winnerColor} ✅`);
   };
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = Math.floor(Date.now() / 1000);
+      const left = ROUND_TIME - (now % ROUND_TIME);
+      setTimeLeft(left);
+
+      const roundId = getCurrentRoundId();
+
+      if (
+        left <= 2 &&
+        user?.email === ADMIN_EMAIL &&
+        autoResultRoundRef.current !== roundId
+      ) {
+        autoResultRoundRef.current = roundId;
+        calculateResult();
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [user, bets]);
 
   const statusColor = (status: string) => {
     if (status === "approved" || status === "win") return "lime";
@@ -241,6 +291,13 @@ export default function Home() {
 
         <h2 style={styles.gameTitle}>3 COLOR GAME</h2>
 
+        <h2 style={{ color: "yellow" }}>
+          Time Left: {Math.floor(timeLeft / 60)}:
+          {(timeLeft % 60).toString().padStart(2, "0")}
+        </h2>
+
+        {result && <h2 style={{ color: "lime" }}>Last Result: {result}</h2>}
+
         <div style={styles.colorRow}>
           {["RED", "GREEN", "PINK"].map((color) => (
             <button
@@ -264,17 +321,7 @@ export default function Home() {
           style={styles.input}
         />
 
-        <button onClick={placeBet} style={styles.betBtn}>
-          PLACE BET
-        </button>
-
-        {user.email === ADMIN_EMAIL && (
-          <button onClick={calculateResult} style={styles.resultBtn}>
-            DECLARE RESULT
-          </button>
-        )}
-
-        {result && <h2 style={{ color: "lime" }}>Last Result: {result}</h2>}
+        <button onClick={placeBet} style={styles.betBtn}>PLACE BET</button>
 
         <div style={styles.grid}>
           <div style={styles.depositBox}>
@@ -294,24 +341,45 @@ export default function Home() {
 
         <h2 style={styles.historyTitle}>TRANSACTION HISTORY</h2>
 
-        {history.length === 0 ? <p>No Transactions</p> : history.map((item, index) => (
-          <div key={index} style={{ ...styles.historyCard, borderColor: item.type === "DEPOSIT" ? "#ff1493" : "gold" }}>
-            <h3>{item.type}</h3>
-            <p>Amount: ₹{item.amount}</p>
-            <p>{item.type === "DEPOSIT" ? `UTR: ${item.utr}` : `UPI: ${item.upi}`}</p>
-            <p>Status: <b style={{ color: statusColor(item.status) }}>{item.status}</b></p>
-            <p>Date: {new Date(Number(item.createdAt)).toLocaleString()}</p>
-          </div>
-        ))}
+        {history.length === 0 ? (
+          <p>No Transactions</p>
+        ) : (
+          history.map((item, index) => (
+            <div key={index} style={{ ...styles.historyCard, borderColor: item.type === "DEPOSIT" ? "#ff1493" : "gold" }}>
+              <h3>{item.type}</h3>
+              <p>Amount: ₹{item.amount}</p>
+              <p>{item.type === "DEPOSIT" ? `UTR: ${item.utr}` : `UPI: ${item.upi}`}</p>
+              <p>Status: <b style={{ color: statusColor(item.status) }}>{item.status}</b></p>
+              <p>Date: {new Date(Number(item.createdAt)).toLocaleString()}</p>
+            </div>
+          ))
+        )}
 
         <h2 style={styles.historyTitle}>BET HISTORY</h2>
 
-        {bets.filter((b) => b.email === user.email).map((bet, index) => (
-          <div key={index} style={styles.betHistory}>
-            <p>Color: {bet.color}</p>
-            <p>Amount: ₹{bet.amount}</p>
-            <p>Status: <b style={{ color: statusColor(bet.status) }}>{bet.status}</b></p>
-            <p>Result: {bet.result || "-"}</p>
+        {bets
+          .filter((b) => b.email === user.email)
+          .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+          .map((bet, index) => (
+            <div key={index} style={styles.betHistory}>
+              <p>Round: {bet.roundId}</p>
+              <p>Color: {bet.color}</p>
+              <p>Amount: ₹{bet.amount}</p>
+              <p>Status: <b style={{ color: statusColor(bet.status) }}>{bet.status}</b></p>
+              <p>Result: {bet.result || "-"}</p>
+            </div>
+          ))}
+
+        <h2 style={styles.historyTitle}>RESULT HISTORY</h2>
+
+        {results.slice(0, 10).map((r, index) => (
+          <div key={index} style={styles.resultCard}>
+            <p>Round: {r.roundId}</p>
+            <p>Winner: <b style={{ color: "lime" }}>{r.winner}</b></p>
+            <p>RED Total: ₹{r.totalRed || 0}</p>
+            <p>GREEN Total: ₹{r.totalGreen || 0}</p>
+            <p>PINK Total: ₹{r.totalPink || 0}</p>
+            <p>Date: {new Date(Number(r.createdAt)).toLocaleString()}</p>
           </div>
         ))}
 
@@ -340,7 +408,6 @@ const styles: any = {
   colorBtn: { color: "white", padding: "20px 35px", borderRadius: "15px", fontWeight: "bold", cursor: "pointer" },
   input: { width: "100%", padding: "15px", marginTop: "15px", background: "#000", color: "white", border: "1px solid gray", borderRadius: "8px", fontWeight: "bold" },
   betBtn: { marginTop: "15px", padding: "14px 30px", background: "cyan", border: "none", borderRadius: "20px", fontWeight: "bold" },
-  resultBtn: { marginTop: "15px", marginLeft: "15px", padding: "14px 30px", background: "lime", border: "none", borderRadius: "20px", fontWeight: "bold" },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginTop: "25px" },
   depositBox: { border: "2px solid #ff1493", padding: "20px", borderRadius: "20px" },
   withdrawBox: { border: "2px solid gold", padding: "20px", borderRadius: "20px" },
@@ -349,6 +416,7 @@ const styles: any = {
   historyTitle: { color: "#00e5ff", marginTop: "35px" },
   historyCard: { border: "2px solid", padding: "18px", borderRadius: "15px", marginTop: "15px", background: "#050505" },
   betHistory: { border: "2px solid cyan", padding: "15px", borderRadius: "15px", marginTop: "15px", background: "#050505" },
+  resultCard: { border: "2px solid lime", padding: "15px", borderRadius: "15px", marginTop: "15px", background: "#050505" },
   btnRow: { display: "flex", gap: "15px", marginTop: "30px" },
   adminBtn: { padding: "14px 28px", borderRadius: "50px", border: "none", background: "#00e5ff", color: "black", fontWeight: "bold" },
   logoutBtn: { padding: "14px 28px", borderRadius: "50px", border: "none", background: "red", color: "white", fontWeight: "bold" },
