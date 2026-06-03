@@ -51,13 +51,12 @@ export default function AdminPage() {
       snap.forEach((d) => {
         const item: any = { id: d.id, ...d.data() };
         data.push(item);
-
-        if (item.status === "approved") {
-          total += Number(item.amount || 0);
-        }
+        if (item.status === "approved") total += Number(item.amount || 0);
       });
 
-      setDepositRequests(data.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)));
+      setDepositRequests(
+        data.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+      );
       setTotalDeposits(total);
     });
 
@@ -68,13 +67,12 @@ export default function AdminPage() {
       snap.forEach((d) => {
         const item: any = { id: d.id, ...d.data() };
         data.push(item);
-
-        if (item.status === "approved") {
-          total += Number(item.amount || 0);
-        }
+        if (item.status === "approved") total += Number(item.amount || 0);
       });
 
-      setWithdrawRequests(data.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)));
+      setWithdrawRequests(
+        data.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+      );
       setTotalWithdrawals(total);
     });
 
@@ -90,7 +88,6 @@ export default function AdminPage() {
       let r = 0;
       let g = 0;
       let p = 0;
-
       const currentRoundId = getCurrentRoundId();
 
       snap.forEach((d) => {
@@ -100,7 +97,6 @@ export default function AdminPage() {
         if (item.status === "pending" && item.roundId === currentRoundId) {
           const amt = Number(item.amount || 0);
           currentTotal += amt;
-
           if (item.color === "RED") r += amt;
           if (item.color === "GREEN") g += amt;
           if (item.color === "PINK") p += amt;
@@ -200,6 +196,8 @@ export default function AdminPage() {
   const uniqueUsers = Array.from(new Map(users.map((u) => [u.email, u])).values());
   const pendingDeposits = depositRequests.filter((x) => x.status === "pending");
   const pendingWithdraws = withdrawRequests.filter((x) => x.status === "pending");
+  const recentDeposits = depositRequests.filter((x) => x.status !== "pending").slice(0, 5);
+  const recentWithdraws = withdrawRequests.filter((x) => x.status !== "pending").slice(0, 5);
   const profit = totalDeposits - totalWithdrawals;
 
   if (loading) return <div style={styles.loading}>LOADING...</div>;
@@ -208,30 +206,13 @@ export default function AdminPage() {
     <div style={styles.page}>
       <h1 style={styles.title}>ADMIN PANEL 🔥</h1>
 
-      <button onClick={handleLogout} style={styles.logoutBtn}>
-        LOGOUT
-      </button>
+      <button onClick={handleLogout} style={styles.logoutBtn}>LOGOUT</button>
 
       <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
-          <h3>Total Users</h3>
-          <h1>{uniqueUsers.length}</h1>
-        </div>
-
-        <div style={styles.statCard}>
-          <h3>Total Deposits</h3>
-          <h1>₹{totalDeposits}</h1>
-        </div>
-
-        <div style={styles.statCard}>
-          <h3>Total Withdrawals</h3>
-          <h1>₹{totalWithdrawals}</h1>
-        </div>
-
-        <div style={styles.statCard}>
-          <h3>Total Profit</h3>
-          <h1 style={{ color: profit >= 0 ? "lime" : "red" }}>₹{profit}</h1>
-        </div>
+        <div style={styles.statCard}><h3>Total Users</h3><h1>{uniqueUsers.length}</h1></div>
+        <div style={styles.statCard}><h3>Total Deposits</h3><h1>₹{totalDeposits}</h1></div>
+        <div style={styles.statCard}><h3>Total Withdrawals</h3><h1>₹{totalWithdrawals}</h1></div>
+        <div style={styles.statCard}><h3>Total Profit</h3><h1 style={{ color: profit >= 0 ? "lime" : "red" }}>₹{profit}</h1></div>
       </div>
 
       <div style={styles.roundBox}>
@@ -252,53 +233,65 @@ export default function AdminPage() {
         <p>Pending Withdraw Requests: {pendingWithdraws.length}</p>
       </div>
 
-      <h2 style={{ color: "#ff00aa" }}>Deposit Requests</h2>
+      <h2 style={{ color: "#ff00aa" }}>Pending Deposit Requests</h2>
 
-      {depositRequests.map((item) => (
+      {pendingDeposits.length === 0 && <p>No pending deposit requests ✅</p>}
+
+      {pendingDeposits.map((item) => (
         <div key={item.id} style={styles.depositCard}>
           <p>Amount: ₹{item.amount}</p>
           <p>Name: {item.name}</p>
           <p>Email: {item.email}</p>
           <p>UTR ID: {item.utr}</p>
-          <p>
-            Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b>
-          </p>
+          <p>Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b></p>
 
-          {item.status === "pending" && (
-            <div style={styles.btnRow}>
-              <button onClick={() => approveDeposit(item)} style={styles.approveBtn}>
-                APPROVE
-              </button>
-              <button onClick={() => rejectDeposit(item)} style={styles.rejectBtn}>
-                REJECT
-              </button>
-            </div>
-          )}
+          <div style={styles.btnRow}>
+            <button onClick={() => approveDeposit(item)} style={styles.approveBtn}>APPROVE</button>
+            <button onClick={() => rejectDeposit(item)} style={styles.rejectBtn}>REJECT</button>
+          </div>
         </div>
       ))}
 
-      <h2 style={{ color: "yellow" }}>Withdraw Requests</h2>
+      <h2 style={{ color: "yellow" }}>Pending Withdraw Requests</h2>
 
-      {withdrawRequests.map((item) => (
+      {pendingWithdraws.length === 0 && <p>No pending withdraw requests ✅</p>}
+
+      {pendingWithdraws.map((item) => (
         <div key={item.id} style={styles.withdrawCard}>
           <p>Amount: ₹{item.amount}</p>
           <p>Name: {item.name}</p>
           <p>Email: {item.email}</p>
           <p>UPI ID: {item.upi}</p>
-          <p>
-            Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b>
-          </p>
+          <p>Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b></p>
 
-          {item.status === "pending" && (
-            <div style={styles.btnRow}>
-              <button onClick={() => approveWithdraw(item)} style={styles.withdrawApproveBtn}>
-                APPROVE
-              </button>
-              <button onClick={() => rejectWithdraw(item)} style={styles.rejectBtn}>
-                REJECT
-              </button>
-            </div>
-          )}
+          <div style={styles.btnRow}>
+            <button onClick={() => approveWithdraw(item)} style={styles.withdrawApproveBtn}>APPROVE</button>
+            <button onClick={() => rejectWithdraw(item)} style={styles.rejectBtn}>REJECT</button>
+          </div>
+        </div>
+      ))}
+
+      <h2 style={{ color: "#ff00aa" }}>Recent Deposits</h2>
+
+      {recentDeposits.map((item) => (
+        <div key={item.id} style={styles.depositCard}>
+          <p>Amount: ₹{item.amount}</p>
+          <p>Name: {item.name}</p>
+          <p>Email: {item.email}</p>
+          <p>UTR ID: {item.utr}</p>
+          <p>Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b></p>
+        </div>
+      ))}
+
+      <h2 style={{ color: "yellow" }}>Recent Withdrawals</h2>
+
+      {recentWithdraws.map((item) => (
+        <div key={item.id} style={styles.withdrawCard}>
+          <p>Amount: ₹{item.amount}</p>
+          <p>Name: {item.name}</p>
+          <p>Email: {item.email}</p>
+          <p>UPI ID: {item.upi}</p>
+          <p>Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b></p>
         </div>
       ))}
 
@@ -307,9 +300,7 @@ export default function AdminPage() {
       {results.slice(0, 20).map((r) => (
         <div key={r.id} style={styles.resultCard}>
           <p>Round: {r.roundId}</p>
-          <p>
-            Winner: <b style={{ color: "lime" }}>{r.winner}</b>
-          </p>
+          <p>Winner: <b style={{ color: "lime" }}>{r.winner}</b></p>
           <p>RED Total: ₹{r.totalRed || 0}</p>
           <p>GREEN Total: ₹{r.totalGreen || 0}</p>
           <p>PINK Total: ₹{r.totalPink || 0}</p>
@@ -326,9 +317,7 @@ export default function AdminPage() {
           <p>Email: {bet.email}</p>
           <p>Color: {bet.color}</p>
           <p>Amount: ₹{bet.amount}</p>
-          <p>
-            Status: <b style={{ color: getBetStatusColor(bet.status) }}>{bet.status}</b>
-          </p>
+          <p>Status: <b style={{ color: getBetStatusColor(bet.status) }}>{bet.status}</b></p>
           <p>Result: {bet.result || "-"}</p>
         </div>
       ))}
@@ -359,150 +348,25 @@ function getBetStatusColor(status: string) {
 }
 
 const styles: any = {
-  page: {
-    background: "black",
-    minHeight: "100vh",
-    padding: "20px",
-    color: "white",
-  },
-  loading: {
-    background: "black",
-    color: "white",
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    fontSize: "30px",
-  },
-  title: {
-    color: "#00e5ff",
-    fontSize: "50px",
-  },
-  logoutBtn: {
-    background: "red",
-    color: "white",
-    border: "none",
-    padding: "12px 24px",
-    borderRadius: "12px",
-    marginBottom: "25px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-    gap: "20px",
-    marginBottom: "30px",
-  },
-  statCard: {
-    background: "#111",
-    padding: "20px",
-    borderRadius: "15px",
-    border: "2px solid cyan",
-    color: "white",
-  },
-  roundBox: {
-    background: "#111",
-    padding: "20px",
-    borderRadius: "15px",
-    border: "2px solid orange",
-    marginBottom: "30px",
-  },
-  colorGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))",
-    gap: "15px",
-  },
-  redBox: {
-    background: "red",
-    padding: "18px",
-    borderRadius: "12px",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  greenBox: {
-    background: "green",
-    padding: "18px",
-    borderRadius: "12px",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  pinkBox: {
-    background: "pink",
-    color: "black",
-    padding: "18px",
-    borderRadius: "12px",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  summaryBox: {
-    background: "#111",
-    borderRadius: "18px",
-    padding: "20px",
-    marginBottom: "25px",
-  },
-  depositCard: {
-    border: "2px solid #ff00aa",
-    padding: "20px",
-    borderRadius: "15px",
-    marginBottom: "20px",
-    background: "#050505",
-  },
-  withdrawCard: {
-    border: "2px solid yellow",
-    padding: "20px",
-    borderRadius: "15px",
-    marginBottom: "20px",
-    background: "#050505",
-  },
-  resultCard: {
-    border: "2px solid lime",
-    padding: "20px",
-    borderRadius: "15px",
-    marginBottom: "20px",
-    background: "#050505",
-  },
-  betCard: {
-    border: "2px solid cyan",
-    padding: "20px",
-    borderRadius: "15px",
-    marginBottom: "20px",
-    background: "#050505",
-  },
-  userCard: {
-    border: "2px solid #00ff99",
-    padding: "20px",
-    borderRadius: "15px",
-    marginBottom: "20px",
-    background: "#050505",
-  },
-  btnRow: {
-    display: "flex",
-    gap: "10px",
-  },
-  approveBtn: {
-    background: "lime",
-    border: "none",
-    padding: "12px 22px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
-  withdrawApproveBtn: {
-    background: "orange",
-    border: "none",
-    padding: "12px 22px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
-  rejectBtn: {
-    background: "red",
-    color: "white",
-    border: "none",
-    padding: "12px 22px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
+  page: { background: "black", minHeight: "100vh", padding: "20px", color: "white" },
+  loading: { background: "black", color: "white", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "30px" },
+  title: { color: "#00e5ff", fontSize: "50px" },
+  logoutBtn: { background: "red", color: "white", border: "none", padding: "12px 24px", borderRadius: "12px", marginBottom: "25px", cursor: "pointer", fontWeight: "bold" },
+  statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "20px", marginBottom: "30px" },
+  statCard: { background: "#111", padding: "20px", borderRadius: "15px", border: "2px solid cyan", color: "white" },
+  roundBox: { background: "#111", padding: "20px", borderRadius: "15px", border: "2px solid orange", marginBottom: "30px" },
+  colorGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "15px" },
+  redBox: { background: "red", padding: "18px", borderRadius: "12px", fontWeight: "bold", textAlign: "center" },
+  greenBox: { background: "green", padding: "18px", borderRadius: "12px", fontWeight: "bold", textAlign: "center" },
+  pinkBox: { background: "pink", color: "black", padding: "18px", borderRadius: "12px", fontWeight: "bold", textAlign: "center" },
+  summaryBox: { background: "#111", borderRadius: "18px", padding: "20px", marginBottom: "25px" },
+  depositCard: { border: "2px solid #ff00aa", padding: "20px", borderRadius: "15px", marginBottom: "20px", background: "#050505" },
+  withdrawCard: { border: "2px solid yellow", padding: "20px", borderRadius: "15px", marginBottom: "20px", background: "#050505" },
+  resultCard: { border: "2px solid lime", padding: "20px", borderRadius: "15px", marginBottom: "20px", background: "#050505" },
+  betCard: { border: "2px solid cyan", padding: "20px", borderRadius: "15px", marginBottom: "20px", background: "#050505" },
+  userCard: { border: "2px solid #00ff99", padding: "20px", borderRadius: "15px", marginBottom: "20px", background: "#050505" },
+  btnRow: { display: "flex", gap: "10px" },
+  approveBtn: { background: "lime", border: "none", padding: "12px 22px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold" },
+  withdrawApproveBtn: { background: "orange", border: "none", padding: "12px 22px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold" },
+  rejectBtn: { background: "red", color: "white", border: "none", padding: "12px 22px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold" },
 };
