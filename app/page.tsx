@@ -35,6 +35,8 @@ export default function Home() {
   const autoResultRoundRef = useRef("");
   const ADMIN_EMAIL = "manidesigner8489@gmail.com";
 
+  const isBetLocked = timeLeft <= 10;
+
   const getCurrentRoundId = () =>
     Math.floor(Date.now() / (ROUND_TIME * 1000)).toString();
 
@@ -167,6 +169,14 @@ export default function Home() {
   };
 
   const placeBet = async () => {
+    const liveTimeLeft =
+      ROUND_TIME - (Math.floor(Date.now() / 1000) % ROUND_TIME);
+
+    if (liveTimeLeft <= 10) {
+      alert("LAST 10 SECONDS - BET CLOSED ❌");
+      return;
+    }
+
     if (!selectedColor) return alert("SELECT COLOR ❌");
     if (!betAmount) return alert("ENTER BET AMOUNT ❌");
     if (Number(betAmount) < 10) return alert("MINIMUM BET ₹10 ❌");
@@ -318,10 +328,14 @@ export default function Home() {
 
         <h2 style={styles.gameTitle}>3 COLOR GAME</h2>
 
-        <h2 style={{ color: "yellow" }}>
+        <h2 style={{ color: isBetLocked ? "red" : "yellow" }}>
           Time Left: {Math.floor(timeLeft / 60)}:
           {(timeLeft % 60).toString().padStart(2, "0")}
         </h2>
+
+        {isBetLocked && (
+          <h2 style={{ color: "red" }}>BET CLOSED - WAIT FOR NEXT ROUND</h2>
+        )}
 
         {result && <h2 style={{ color: "lime" }}>Last Result: {result}</h2>}
 
@@ -329,11 +343,14 @@ export default function Home() {
           {["RED", "GREEN", "PINK"].map((color) => (
             <button
               key={color}
-              onClick={() => setSelectedColor(color)}
+              onClick={() => !isBetLocked && setSelectedColor(color)}
+              disabled={isBetLocked}
               style={{
                 ...styles.colorBtn,
                 background: color.toLowerCase(),
                 border: selectedColor === color ? "4px solid white" : "none",
+                opacity: isBetLocked ? 0.5 : 1,
+                cursor: isBetLocked ? "not-allowed" : "pointer",
               }}
             >
               {color}
@@ -344,12 +361,24 @@ export default function Home() {
         <input
           placeholder="Enter Bet Amount"
           value={betAmount}
+          disabled={isBetLocked}
           onChange={(e) => setBetAmount(e.target.value)}
-          style={styles.input}
+          style={{
+            ...styles.input,
+            opacity: isBetLocked ? 0.5 : 1,
+          }}
         />
 
-        <button onClick={placeBet} style={styles.betBtn}>
-          PLACE BET
+        <button
+          onClick={placeBet}
+          disabled={isBetLocked}
+          style={{
+            ...styles.betBtn,
+            opacity: isBetLocked ? 0.5 : 1,
+            cursor: isBetLocked ? "not-allowed" : "pointer",
+          }}
+        >
+          {isBetLocked ? "BET CLOSED" : "PLACE BET"}
         </button>
 
         <div style={styles.grid}>
@@ -407,9 +436,16 @@ export default function Home() {
             >
               <h3>{item.type}</h3>
               <p>Amount: ₹{item.amount}</p>
-              <p>{item.type === "DEPOSIT" ? `UTR: ${item.utr}` : `UPI: ${item.upi}`}</p>
               <p>
-                Status: <b style={{ color: statusColor(item.status) }}>{item.status}</b>
+                {item.type === "DEPOSIT"
+                  ? `UTR: ${item.utr}`
+                  : `UPI: ${item.upi}`}
+              </p>
+              <p>
+                Status:{" "}
+                <b style={{ color: statusColor(item.status) }}>
+                  {item.status}
+                </b>
               </p>
               <p>Date: {new Date(Number(item.createdAt)).toLocaleString()}</p>
             </div>
@@ -427,7 +463,10 @@ export default function Home() {
               <p>Color: {bet.color}</p>
               <p>Amount: ₹{bet.amount}</p>
               <p>
-                Status: <b style={{ color: statusColor(bet.status) }}>{bet.status}</b>
+                Status:{" "}
+                <b style={{ color: statusColor(bet.status) }}>
+                  {bet.status}
+                </b>
               </p>
               <p>Result: {bet.result || "-"}</p>
             </div>
