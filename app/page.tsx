@@ -31,14 +31,28 @@ export default function Home() {
   const [results, setResults] = useState<any[]>([]);
   const [result, setResult] = useState("");
   const [timeLeft, setTimeLeft] = useState(ROUND_TIME);
+  const [winPopup, setWinPopup] = useState<any>(null);
 
   const autoResultRoundRef = useRef("");
+  const shownWinIdsRef = useRef<Set<string>>(new Set());
+  const firstBetsLoadRef = useRef(true);
+
   const ADMIN_EMAIL = "manidesigner8489@gmail.com";
 
   const isBetLocked = timeLeft <= 10;
 
   const getCurrentRoundId = () =>
     Math.floor(Date.now() / (ROUND_TIME * 1000)).toString();
+
+  useEffect(() => {
+    if (!winPopup) return;
+
+    const closeTimer = setTimeout(() => {
+      setWinPopup(null);
+    }, 5000);
+
+    return () => clearTimeout(closeTimer);
+  }, [winPopup]);
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (currentUser) => {
@@ -100,7 +114,44 @@ export default function Home() {
       onSnapshot(collection(db, "bets"), (snap) => {
         const data: any[] = [];
         snap.forEach((d) => data.push({ id: d.id, ...d.data() }));
+
         setBets(data);
+
+        if (firstBetsLoadRef.current) {
+          data.forEach((bet) => {
+            if (bet.status !== "pending") {
+              shownWinIdsRef.current.add(bet.id);
+            }
+          });
+          firstBetsLoadRef.current = false;
+          return;
+        }
+
+        const myNewWin = data
+          .filter(
+            (bet) =>
+              bet.email === currentUser.email &&
+              bet.status === "win" &&
+              !shownWinIdsRef.current.has(bet.id)
+          )
+          .sort(
+            (a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)
+          )[0];
+
+        data.forEach((bet) => {
+          if (bet.status !== "pending") {
+            shownWinIdsRef.current.add(bet.id);
+          }
+        });
+
+        if (myNewWin) {
+          setWinPopup({
+            color: myNewWin.result || myNewWin.color,
+            amount: Number(myNewWin.amount || 0) * 2,
+            betAmount: Number(myNewWin.amount || 0),
+            roundId: myNewWin.roundId,
+          });
+        }
       });
 
       onSnapshot(collection(db, "results"), (snap) => {
@@ -319,6 +370,43 @@ export default function Home() {
 
   return (
     <main style={styles.page}>
+      {winPopup && (
+        <div style={styles.winOverlay}>
+          <div style={styles.confettiLayer}>
+            {Array.from({ length: 40 }).map((_, i) => (
+              <span
+                key={i}
+                style={{
+                  ...styles.confetti,
+                  left: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 1.5}s`,
+                  background: [
+                    "#ff1493",
+                    "#00e5ff",
+                    "#ffcc00",
+                    "#00ff99",
+                    "#ff3333",
+                    "#ffffff",
+                  ][i % 6],
+                }}
+              />
+            ))}
+          </div>
+
+          <div style={styles.winBox}>
+            <div style={styles.trophy}>🏆</div>
+            <h1 style={styles.winTitle}>CONGRATULATIONS!</h1>
+            <h1 style={styles.winAmount}>YOU WON ₹{winPopup.amount}</h1>
+            <h2 style={styles.winResult}>RESULT: {winPopup.color}</h2>
+            <p style={styles.winSub}>BET ₹{winPopup.betAmount} • ROUND {winPopup.roundId}</p>
+
+            <button onClick={() => setWinPopup(null)} style={styles.closeWinBtn}>
+              AWESOME
+            </button>
+          </div>
+        </div>
+      )}
+
       <h1 style={styles.title}>MY CHOICE PLAY</h1>
 
       <section style={styles.card}>
@@ -501,6 +589,23 @@ export default function Home() {
           </button>
         </div>
       </section>
+
+      <style jsx global>{`
+        @keyframes trophyBounce {
+          0%, 100% { transform: scale(1) translateY(0); }
+          50% { transform: scale(1.18) translateY(-12px); }
+        }
+
+        @keyframes glowPulse {
+          0%, 100% { box-shadow: 0 0 25px #ffcc00, 0 0 60px #ff1493; }
+          50% { box-shadow: 0 0 50px #00e5ff, 0 0 100px #ffcc00; }
+        }
+
+        @keyframes confettiFall {
+          0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+      `}</style>
     </main>
   );
 }
@@ -520,6 +625,73 @@ const styles: any = {
     minHeight: "100vh",
     color: "white",
     padding: "20px",
+  },
+  winOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.85)",
+    zIndex: 9999,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  confettiLayer: {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+  },
+  confetti: {
+    position: "absolute",
+    top: "-30px",
+    width: "12px",
+    height: "24px",
+    borderRadius: "3px",
+    animation: "confettiFall 3s linear infinite",
+  },
+  winBox: {
+    width: "90%",
+    maxWidth: "520px",
+    background: "linear-gradient(135deg, #111, #001f2f)",
+    border: "4px solid #ffcc00",
+    borderRadius: "30px",
+    padding: "35px",
+    textAlign: "center",
+    animation: "glowPulse 1.5s infinite",
+    position: "relative",
+    zIndex: 2,
+  },
+  trophy: {
+    fontSize: "110px",
+    animation: "trophyBounce 1s infinite",
+  },
+  winTitle: {
+    color: "#ffcc00",
+    fontSize: "36px",
+    margin: "10px 0",
+  },
+  winAmount: {
+    color: "#00ff99",
+    fontSize: "46px",
+    margin: "10px 0",
+  },
+  winResult: {
+    color: "#00e5ff",
+    fontSize: "28px",
+  },
+  winSub: {
+    color: "white",
+    fontSize: "16px",
+  },
+  closeWinBtn: {
+    marginTop: "20px",
+    padding: "15px 35px",
+    background: "#ff1493",
+    color: "white",
+    border: "none",
+    borderRadius: "50px",
+    fontWeight: "bold",
+    cursor: "pointer",
   },
   title: {
     color: "#ff1493",
