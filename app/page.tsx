@@ -38,18 +38,54 @@ export default function Home() {
   const firstBetsLoadRef = useRef(true);
 
   const ADMIN_EMAIL = "manidesigner8489@gmail.com";
-
   const isBetLocked = timeLeft <= 10;
 
   const getCurrentRoundId = () =>
     Math.floor(Date.now() / (ROUND_TIME * 1000)).toString();
 
+  const playWinSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+
+      const notes = [523, 659, 784, 1046];
+
+      notes.forEach((freq, index) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.frequency.value = freq;
+        osc.type = "triangle";
+
+        gain.gain.setValueAtTime(0.0001, audioCtx.currentTime + index * 0.15);
+        gain.gain.exponentialRampToValueAtTime(
+          0.25,
+          audioCtx.currentTime + index * 0.15 + 0.03
+        );
+        gain.gain.exponentialRampToValueAtTime(
+          0.0001,
+          audioCtx.currentTime + index * 0.15 + 0.25
+        );
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(audioCtx.currentTime + index * 0.15);
+        osc.stop(audioCtx.currentTime + index * 0.15 + 0.28);
+      });
+    } catch {
+      console.log("Audio not supported");
+    }
+  };
+
   useEffect(() => {
     if (!winPopup) return;
 
+    playWinSound();
+
     const closeTimer = setTimeout(() => {
       setWinPopup(null);
-    }, 5000);
+    }, 6000);
 
     return () => clearTimeout(closeTimer);
   }, [winPopup]);
@@ -134,9 +170,7 @@ export default function Home() {
               bet.status === "win" &&
               !shownWinIdsRef.current.has(bet.id)
           )
-          .sort(
-            (a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)
-          )[0];
+          .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))[0];
 
         data.forEach((bet) => {
           if (bet.status !== "pending") {
@@ -373,13 +407,13 @@ export default function Home() {
       {winPopup && (
         <div style={styles.winOverlay}>
           <div style={styles.confettiLayer}>
-            {Array.from({ length: 40 }).map((_, i) => (
+            {Array.from({ length: 45 }).map((_, i) => (
               <span
-                key={i}
+                key={`c-${i}`}
                 style={{
                   ...styles.confetti,
-                  left: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 1.5}s`,
+                  left: `${(i * 17) % 100}%`,
+                  animationDelay: `${(i % 15) * 0.1}s`,
                   background: [
                     "#ff1493",
                     "#00e5ff",
@@ -393,12 +427,29 @@ export default function Home() {
             ))}
           </div>
 
+          <div style={styles.moneyLayer}>
+            {Array.from({ length: 24 }).map((_, i) => (
+              <span
+                key={`m-${i}`}
+                style={{
+                  ...styles.money,
+                  left: `${(i * 23) % 100}%`,
+                  animationDelay: `${(i % 12) * 0.12}s`,
+                }}
+              >
+                💸
+              </span>
+            ))}
+          </div>
+
           <div style={styles.winBox}>
             <div style={styles.trophy}>🏆</div>
-            <h1 style={styles.winTitle}>CONGRATULATIONS!</h1>
+            <h1 style={styles.winTitle}>BIG WIN!</h1>
             <h1 style={styles.winAmount}>YOU WON ₹{winPopup.amount}</h1>
             <h2 style={styles.winResult}>RESULT: {winPopup.color}</h2>
-            <p style={styles.winSub}>BET ₹{winPopup.betAmount} • ROUND {winPopup.roundId}</p>
+            <p style={styles.winSub}>
+              BET ₹{winPopup.betAmount} • ROUND {winPopup.roundId}
+            </p>
 
             <button onClick={() => setWinPopup(null)} style={styles.closeWinBtn}>
               AWESOME
@@ -531,9 +582,7 @@ export default function Home() {
               </p>
               <p>
                 Status:{" "}
-                <b style={{ color: statusColor(item.status) }}>
-                  {item.status}
-                </b>
+                <b style={{ color: statusColor(item.status) }}>{item.status}</b>
               </p>
               <p>Date: {new Date(Number(item.createdAt)).toLocaleString()}</p>
             </div>
@@ -552,9 +601,7 @@ export default function Home() {
               <p>Amount: ₹{bet.amount}</p>
               <p>
                 Status:{" "}
-                <b style={{ color: statusColor(bet.status) }}>
-                  {bet.status}
-                </b>
+                <b style={{ color: statusColor(bet.status) }}>{bet.status}</b>
               </p>
               <p>Result: {bet.result || "-"}</p>
             </div>
@@ -593,17 +640,28 @@ export default function Home() {
       <style jsx global>{`
         @keyframes trophyBounce {
           0%, 100% { transform: scale(1) translateY(0); }
-          50% { transform: scale(1.18) translateY(-12px); }
+          50% { transform: scale(1.2) translateY(-15px); }
         }
 
         @keyframes glowPulse {
-          0%, 100% { box-shadow: 0 0 25px #ffcc00, 0 0 60px #ff1493; }
-          50% { box-shadow: 0 0 50px #00e5ff, 0 0 100px #ffcc00; }
+          0%, 100% { box-shadow: 0 0 30px #ffcc00, 0 0 70px #ff1493; }
+          50% { box-shadow: 0 0 60px #00e5ff, 0 0 120px #ffcc00; }
         }
 
         @keyframes confettiFall {
-          0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+          0% { transform: translateY(-120px) rotate(0deg); opacity: 1; }
           100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        @keyframes moneyRain {
+          0% { transform: translateY(-120px) rotate(0deg) scale(0.8); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(360deg) scale(1.4); opacity: 0; }
+        }
+
+        @keyframes screenPop {
+          0% { transform: scale(0.6); opacity: 0; }
+          60% { transform: scale(1.08); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
         }
       `}</style>
     </main>
@@ -629,7 +687,7 @@ const styles: any = {
   winOverlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.85)",
+    background: "rgba(0,0,0,0.88)",
     zIndex: 9999,
     display: "flex",
     alignItems: "center",
@@ -637,6 +695,11 @@ const styles: any = {
     overflow: "hidden",
   },
   confettiLayer: {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+  },
+  moneyLayer: {
     position: "absolute",
     inset: 0,
     pointerEvents: "none",
@@ -649,35 +712,41 @@ const styles: any = {
     borderRadius: "3px",
     animation: "confettiFall 3s linear infinite",
   },
+  money: {
+    position: "absolute",
+    top: "-40px",
+    fontSize: "34px",
+    animation: "moneyRain 3.8s linear infinite",
+  },
   winBox: {
     width: "90%",
-    maxWidth: "520px",
+    maxWidth: "540px",
     background: "linear-gradient(135deg, #111, #001f2f)",
     border: "4px solid #ffcc00",
     borderRadius: "30px",
     padding: "35px",
     textAlign: "center",
-    animation: "glowPulse 1.5s infinite",
+    animation: "glowPulse 1.5s infinite, screenPop 0.4s ease-out",
     position: "relative",
     zIndex: 2,
   },
   trophy: {
-    fontSize: "110px",
+    fontSize: "120px",
     animation: "trophyBounce 1s infinite",
   },
   winTitle: {
     color: "#ffcc00",
-    fontSize: "36px",
+    fontSize: "42px",
     margin: "10px 0",
   },
   winAmount: {
     color: "#00ff99",
-    fontSize: "46px",
+    fontSize: "50px",
     margin: "10px 0",
   },
   winResult: {
     color: "#00e5ff",
-    fontSize: "28px",
+    fontSize: "30px",
   },
   winSub: {
     color: "white",
