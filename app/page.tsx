@@ -32,9 +32,10 @@ export default function Home() {
   const [result, setResult] = useState("");
   const [timeLeft, setTimeLeft] = useState(ROUND_TIME);
   const [winPopup, setWinPopup] = useState<any>(null);
+  const [lossPopup, setLossPopup] = useState<any>(null);
 
   const autoResultRoundRef = useRef("");
-  const shownWinIdsRef = useRef<Set<string>>(new Set());
+  const shownBetIdsRef = useRef<Set<string>>(new Set());
   const firstBetsLoadRef = useRef(true);
 
   const ADMIN_EMAIL = "manidesigner8489@gmail.com";
@@ -47,7 +48,6 @@ export default function Home() {
     try {
       const audioCtx = new (window.AudioContext ||
         (window as any).webkitAudioContext)();
-
       const notes = [523, 659, 784, 1046];
 
       notes.forEach((freq, index) => {
@@ -80,15 +80,16 @@ export default function Home() {
 
   useEffect(() => {
     if (!winPopup) return;
-
     playWinSound();
-
-    const closeTimer = setTimeout(() => {
-      setWinPopup(null);
-    }, 6000);
-
+    const closeTimer = setTimeout(() => setWinPopup(null), 6000);
     return () => clearTimeout(closeTimer);
   }, [winPopup]);
+
+  useEffect(() => {
+    if (!lossPopup) return;
+    const closeTimer = setTimeout(() => setLossPopup(null), 4000);
+    return () => clearTimeout(closeTimer);
+  }, [lossPopup]);
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (currentUser) => {
@@ -155,35 +156,40 @@ export default function Home() {
 
         if (firstBetsLoadRef.current) {
           data.forEach((bet) => {
-            if (bet.status !== "pending") {
-              shownWinIdsRef.current.add(bet.id);
-            }
+            if (bet.status !== "pending") shownBetIdsRef.current.add(bet.id);
           });
           firstBetsLoadRef.current = false;
           return;
         }
 
-        const myNewWin = data
+        const myFinishedBet = data
           .filter(
             (bet) =>
               bet.email === currentUser.email &&
-              bet.status === "win" &&
-              !shownWinIdsRef.current.has(bet.id)
+              bet.status !== "pending" &&
+              !shownBetIdsRef.current.has(bet.id)
           )
           .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))[0];
 
         data.forEach((bet) => {
-          if (bet.status !== "pending") {
-            shownWinIdsRef.current.add(bet.id);
-          }
+          if (bet.status !== "pending") shownBetIdsRef.current.add(bet.id);
         });
 
-        if (myNewWin) {
+        if (myFinishedBet?.status === "win") {
           setWinPopup({
-            color: myNewWin.result || myNewWin.color,
-            amount: Number(myNewWin.amount || 0) * 2,
-            betAmount: Number(myNewWin.amount || 0),
-            roundId: myNewWin.roundId,
+            color: myFinishedBet.result || myFinishedBet.color,
+            amount: Number(myFinishedBet.amount || 0) * 2,
+            betAmount: Number(myFinishedBet.amount || 0),
+            roundId: myFinishedBet.roundId,
+          });
+        }
+
+        if (myFinishedBet?.status === "loss") {
+          setLossPopup({
+            color: myFinishedBet.result || "-",
+            amount: Number(myFinishedBet.amount || 0),
+            betColor: myFinishedBet.color,
+            roundId: myFinishedBet.roundId,
           });
         }
       });
@@ -450,9 +456,24 @@ export default function Home() {
             <p style={styles.winSub}>
               BET ₹{winPopup.betAmount} • ROUND {winPopup.roundId}
             </p>
-
             <button onClick={() => setWinPopup(null)} style={styles.closeWinBtn}>
               AWESOME
+            </button>
+          </div>
+        </div>
+      )}
+
+      {lossPopup && (
+        <div style={styles.lossOverlay}>
+          <div style={styles.lossBox}>
+            <div style={styles.lossIcon}>😔</div>
+            <h1 style={styles.lossTitle}>YOU LOST ₹{lossPopup.amount}</h1>
+            <h2 style={styles.lossResult}>RESULT: {lossPopup.color}</h2>
+            <p style={styles.lossSub}>
+              YOUR COLOR: {lossPopup.betColor} • ROUND {lossPopup.roundId}
+            </p>
+            <button onClick={() => setLossPopup(null)} style={styles.closeLossBtn}>
+              TRY AGAIN
             </button>
           </div>
         </div>
@@ -663,6 +684,11 @@ export default function Home() {
           60% { transform: scale(1.08); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
         }
+
+        @keyframes lossPop {
+          0% { transform: scale(0.7); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
       `}</style>
     </main>
   );
@@ -756,6 +782,51 @@ const styles: any = {
     marginTop: "20px",
     padding: "15px 35px",
     background: "#ff1493",
+    color: "white",
+    border: "none",
+    borderRadius: "50px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  lossOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.7)",
+    zIndex: 9998,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lossBox: {
+    width: "90%",
+    maxWidth: "420px",
+    background: "#111",
+    border: "3px solid red",
+    borderRadius: "25px",
+    padding: "30px",
+    textAlign: "center",
+    animation: "lossPop 0.3s ease-out",
+    boxShadow: "0 0 35px red",
+  },
+  lossIcon: {
+    fontSize: "80px",
+  },
+  lossTitle: {
+    color: "red",
+    fontSize: "34px",
+  },
+  lossResult: {
+    color: "#00e5ff",
+    fontSize: "24px",
+  },
+  lossSub: {
+    color: "white",
+    fontSize: "15px",
+  },
+  closeLossBtn: {
+    marginTop: "18px",
+    padding: "14px 30px",
+    background: "red",
     color: "white",
     border: "none",
     borderRadius: "50px",

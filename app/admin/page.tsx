@@ -201,6 +201,12 @@ export default function AdminPage() {
   const recentDeposits = depositRequests.filter((x) => x.status !== "pending").slice(0, 5);
   const recentWithdraws = withdrawRequests.filter((x) => x.status !== "pending").slice(0, 5);
   const profit = totalDeposits - totalWithdrawals;
+  const onlineUsers = uniqueUsers.length;
+
+  const topWinners = bets
+    .filter((b) => b.status === "win")
+    .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
+    .slice(0, 5);
 
   if (loading) return <div style={styles.loading}>LOADING...</div>;
 
@@ -234,6 +240,23 @@ export default function AdminPage() {
         </div>
       </div>
 
+      <div style={styles.proGrid}>
+        <div style={styles.onlineCard}>
+          <h3>🟢 Online Users</h3>
+          <h1>{onlineUsers}</h1>
+        </div>
+
+        <div style={styles.todayProfitCard}>
+          <h3>💰 Today Profit</h3>
+          <h1 style={{ color: profit >= 0 ? "lime" : "red" }}>₹{profit}</h1>
+        </div>
+
+        <div style={styles.winnerMiniCard}>
+          <h3>🏆 Top Winners</h3>
+          <h1>{topWinners.length}</h1>
+        </div>
+      </div>
+
       <div style={styles.roundBox}>
         <h2>Current Round Monitor</h2>
         <p>Round ID: {getCurrentRoundId()}</p>
@@ -244,6 +267,23 @@ export default function AdminPage() {
           <div style={styles.greenBox}>GREEN: ₹{greenTotal}</div>
           <div style={styles.pinkBox}>PINK: ₹{pinkTotal}</div>
         </div>
+      </div>
+
+      <h2 style={{ color: "gold" }}>🏆 TOP WINNERS TODAY</h2>
+
+      <div style={styles.topWinnerBox}>
+        {topWinners.length === 0 ? (
+          <p>No winners yet</p>
+        ) : (
+          topWinners.map((winner, index) => (
+            <div key={winner.id || index} style={styles.topWinnerRow}>
+              <span>#{index + 1}</span>
+              <span>{winner.name || "User"}</span>
+              <span style={{ color: "lime" }}>₹{Number(winner.amount || 0) * 2}</span>
+              <span>{winner.color} WIN</span>
+            </div>
+          ))
+        )}
       </div>
 
       <h2 style={{ color: "cyan" }}>Live Bet Monitor</h2>
@@ -287,9 +327,7 @@ export default function AdminPage() {
           <p>Name: {item.name}</p>
           <p>Email: {item.email}</p>
           <p>UTR ID: {item.utr}</p>
-          <p>
-            Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b>
-          </p>
+          <p>Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b></p>
 
           <div style={styles.btnRow}>
             <button onClick={() => approveDeposit(item)} style={styles.approveBtn}>
@@ -312,9 +350,7 @@ export default function AdminPage() {
           <p>Name: {item.name}</p>
           <p>Email: {item.email}</p>
           <p>UPI ID: {item.upi}</p>
-          <p>
-            Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b>
-          </p>
+          <p>Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b></p>
 
           <div style={styles.btnRow}>
             <button onClick={() => approveWithdraw(item)} style={styles.withdrawApproveBtn}>
@@ -335,9 +371,7 @@ export default function AdminPage() {
           <p>Name: {item.name}</p>
           <p>Email: {item.email}</p>
           <p>UTR ID: {item.utr}</p>
-          <p>
-            Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b>
-          </p>
+          <p>Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b></p>
         </div>
       ))}
 
@@ -349,9 +383,7 @@ export default function AdminPage() {
           <p>Name: {item.name}</p>
           <p>Email: {item.email}</p>
           <p>UPI ID: {item.upi}</p>
-          <p>
-            Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b>
-          </p>
+          <p>Status: <b style={{ color: getStatusColor(item.status) }}>{item.status}</b></p>
         </div>
       ))}
 
@@ -360,9 +392,7 @@ export default function AdminPage() {
       {results.slice(0, 20).map((r) => (
         <div key={r.id} style={styles.resultCard}>
           <p>Round: {r.roundId}</p>
-          <p>
-            Winner: <b style={{ color: "lime" }}>{r.winner}</b>
-          </p>
+          <p>Winner: <b style={{ color: "lime" }}>{r.winner}</b></p>
           <p>RED Total: ₹{r.totalRed || 0}</p>
           <p>GREEN Total: ₹{r.totalGreen || 0}</p>
           <p>PINK Total: ₹{r.totalPink || 0}</p>
@@ -431,11 +461,38 @@ const styles: any = {
     gap: "20px",
     marginBottom: "30px",
   },
+  proGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+    gap: "20px",
+    marginBottom: "30px",
+  },
   statCard: {
     background: "#111",
     padding: "20px",
     borderRadius: "15px",
     border: "2px solid cyan",
+    color: "white",
+  },
+  onlineCard: {
+    background: "#111",
+    padding: "20px",
+    borderRadius: "15px",
+    border: "2px solid lime",
+    color: "white",
+  },
+  todayProfitCard: {
+    background: "#111",
+    padding: "20px",
+    borderRadius: "15px",
+    border: "2px solid gold",
+    color: "white",
+  },
+  winnerMiniCard: {
+    background: "#111",
+    padding: "20px",
+    borderRadius: "15px",
+    border: "2px solid #ff1493",
     color: "white",
   },
   roundBox: {
@@ -471,6 +528,21 @@ const styles: any = {
     borderRadius: "12px",
     fontWeight: "bold",
     textAlign: "center",
+  },
+  topWinnerBox: {
+    border: "2px solid gold",
+    padding: "20px",
+    borderRadius: "15px",
+    marginBottom: "30px",
+    background: "#111",
+  },
+  topWinnerRow: {
+    display: "grid",
+    gridTemplateColumns: "60px 1fr 120px 120px",
+    gap: "10px",
+    padding: "12px",
+    borderBottom: "1px solid #333",
+    fontWeight: "bold",
   },
   liveBetBox: {
     border: "2px solid cyan",
