@@ -12,6 +12,7 @@ import {
   where,
   onSnapshot,
   updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 import { auth, provider, db } from "./firebase";
 
@@ -20,6 +21,7 @@ const ROUND_TIME = 5 * 60;
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [balance, setBalance] = useState(0);
+  const [onlinePlayers, setOnlinePlayers] = useState(0);
   const [depositAmount, setDepositAmount] = useState("");
   const [utr, setUtr] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -121,6 +123,38 @@ export default function Home() {
 
       setUser(currentUser);
 
+      const onlineRef = doc(db, "onlineUsers", currentUser.email!);
+
+      await setDoc(onlineRef, {
+        name: currentUser.displayName,
+        email: currentUser.email,
+        lastSeen: Date.now(),
+      });
+
+      const onlineInterval = setInterval(async () => {
+        await setDoc(onlineRef, {
+          name: currentUser.displayName,
+          email: currentUser.email,
+          lastSeen: Date.now(),
+        });
+      }, 15000);
+
+      const handleBeforeUnload = () => {
+        deleteDoc(onlineRef);
+      };
+
+      window.addEventListener("beforeunload", handleBeforeUnload);
+
+      const unsubOnline = onSnapshot(collection(db, "onlineUsers"), (snap) => {
+        const now = Date.now();
+        const activeUsers = snap.docs.filter((d) => {
+          const data: any = d.data();
+          return now - Number(data.lastSeen || 0) < 60000;
+        });
+
+        setOnlinePlayers(activeUsers.length);
+      });
+
       const userRef = doc(db, "users", currentUser.email!);
       const snap = await getDoc(userRef);
 
@@ -132,7 +166,7 @@ export default function Home() {
         });
       }
 
-      onSnapshot(userRef, (s) => {
+      const unsubUser = onSnapshot(userRef, (s) => {
         if (s.exists()) setBalance(Number(s.data().balance || 0));
       });
 
@@ -146,14 +180,18 @@ export default function Home() {
         where("email", "==", currentUser.email)
       );
 
-      onSnapshot(dq, (depositSnap) => {
+      let unsubWithdraw: any = null;
+
+      const unsubDeposit = onSnapshot(dq, (depositSnap) => {
         const deposits = depositSnap.docs.map((d) => ({
           id: d.id,
           type: "DEPOSIT",
           ...d.data(),
         }));
 
-        onSnapshot(wq, (withdrawSnap) => {
+        if (unsubWithdraw) unsubWithdraw();
+
+        unsubWithdraw = onSnapshot(wq, (withdrawSnap) => {
           const withdraws = withdrawSnap.docs.map((d) => ({
             id: d.id,
             type: "WITHDRAW",
@@ -169,7 +207,7 @@ export default function Home() {
         });
       });
 
-      onSnapshot(collection(db, "bets"), (snap) => {
+      const unsubBets = onSnapshot(collection(db, "bets"), (snap) => {
         const data: any[] = [];
         snap.forEach((d) => data.push({ id: d.id, ...d.data() }));
 
@@ -215,7 +253,7 @@ export default function Home() {
         }
       });
 
-      onSnapshot(collection(db, "results"), (snap) => {
+      const unsubResults = onSnapshot(collection(db, "results"), (snap) => {
         const data: any[] = [];
         snap.forEach((d) => data.push({ id: d.id, ...d.data() }));
 
@@ -240,6 +278,18 @@ export default function Home() {
 
         if (sorted.length > 0) setResult(sorted[0].winner);
       });
+
+      return () => {
+        clearInterval(onlineInterval);
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        deleteDoc(onlineRef);
+        unsubOnline();
+        unsubUser();
+        unsubDeposit();
+        if (unsubWithdraw) unsubWithdraw();
+        unsubBets();
+        unsubResults();
+      };
     });
 
     return () => unsubAuth();
@@ -255,6 +305,9 @@ export default function Home() {
   };
 
   const logout = async () => {
+    if (user?.email) {
+      await deleteDoc(doc(db, "onlineUsers", user.email));
+    }
     await signOut(auth);
   };
 
@@ -535,6 +588,10 @@ export default function Home() {
         <p>{user.email}</p>
         <h1 style={styles.balance}>Balance: ₹{balance}</h1>
 
+        <div style={styles.onlinePlayersBox}>
+          🟢 ONLINE PLAYERS: {onlinePlayers}
+        </div>
+
         <h2 style={styles.gameTitle}>3 COLOR GAME</h2>
 
         <h2 style={{ color: isBetLocked ? "red" : "yellow" }}>
@@ -795,6 +852,17 @@ const styles: any = {
   tickerItem: {
     display: "inline-block",
     marginRight: "45px",
+  },
+  onlinePlayersBox: {
+    background: "#050505",
+    border: "2px solid lime",
+    color: "lime",
+    padding: "14px",
+    borderRadius: "14px",
+    fontWeight: "bold",
+    marginTop: "15px",
+    marginBottom: "15px",
+    boxShadow: "0 0 18px rgba(0,255,0,0.3)",
   },
   livePoolBox: {
     background: "#050505",
