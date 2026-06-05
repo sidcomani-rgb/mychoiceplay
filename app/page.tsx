@@ -53,6 +53,24 @@ export default function Home() {
     (b) => b.status === "pending" && b.roundId === currentRoundId
   );
 
+  const myActiveBets = user
+    ? currentRoundPendingBets.filter((b) => b.email === user.email)
+    : [];
+
+  const myRedActive = myActiveBets
+    .filter((b) => b.color === "RED")
+    .reduce((sum, b) => sum + Number(b.amount || 0), 0);
+
+  const myGreenActive = myActiveBets
+    .filter((b) => b.color === "GREEN")
+    .reduce((sum, b) => sum + Number(b.amount || 0), 0);
+
+  const myPinkActive = myActiveBets
+    .filter((b) => b.color === "PINK")
+    .reduce((sum, b) => sum + Number(b.amount || 0), 0);
+
+  const myTotalActive = myRedActive + myGreenActive + myPinkActive;
+
   const redLiveTotal = currentRoundPendingBets
     .filter((b) => b.color === "RED")
     .reduce((sum, b) => sum + Number(b.amount || 0), 0);
@@ -66,6 +84,37 @@ export default function Home() {
     .reduce((sum, b) => sum + Number(b.amount || 0), 0);
 
   const totalPool = redLiveTotal + greenLiveTotal + pinkLiveTotal;
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const leaderboardMap = new Map();
+
+  bets
+    .filter(
+      (b) =>
+        b.status === "win" &&
+        Number(b.createdAt || 0) >= todayStart.getTime()
+    )
+    .forEach((b) => {
+      const key = b.email || b.name || "User";
+      const old = leaderboardMap.get(key) || {
+        name: b.name || "User",
+        email: b.email || "",
+        amount: 0,
+        wins: 0,
+      };
+
+      leaderboardMap.set(key, {
+        ...old,
+        amount: old.amount + Number(b.amount || 0) * 2,
+        wins: old.wins + 1,
+      });
+    });
+
+  const dailyLeaderboard = Array.from(leaderboardMap.values())
+    .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
+    .slice(0, 5);
 
   const playWinSound = () => {
     try {
@@ -592,6 +641,23 @@ export default function Home() {
           🟢 ONLINE PLAYERS: {onlinePlayers}
         </div>
 
+        <div style={styles.activeBetBox}>
+          <h2 style={styles.activeBetTitle}>🎯 MY ACTIVE BETS</h2>
+
+          {myTotalActive === 0 ? (
+            <p style={{ color: "white" }}>No active bets this round</p>
+          ) : (
+            <>
+              <div style={styles.activeBetGrid}>
+                <div style={styles.activeRed}>🔴 RED ₹{myRedActive}</div>
+                <div style={styles.activeGreen}>🟢 GREEN ₹{myGreenActive}</div>
+                <div style={styles.activePink}>🌸 PINK ₹{myPinkActive}</div>
+              </div>
+              <h2 style={styles.activeTotal}>TOTAL ACTIVE BET: ₹{myTotalActive}</h2>
+            </>
+          )}
+        </div>
+
         <h2 style={styles.gameTitle}>3 COLOR GAME</h2>
 
         <h2 style={{ color: isBetLocked ? "red" : "yellow" }}>
@@ -613,6 +679,23 @@ export default function Home() {
             <div style={styles.livePink}>🌸 PINK ₹{pinkLiveTotal}</div>
           </div>
           <h2 style={styles.totalPool}>💰 TOTAL POOL: ₹{totalPool}</h2>
+        </div>
+
+        <div style={styles.leaderboardBox}>
+          <h2 style={styles.leaderboardTitle}>🏆 DAILY LEADERBOARD</h2>
+
+          {dailyLeaderboard.length === 0 ? (
+            <p style={{ color: "white" }}>No winners today</p>
+          ) : (
+            dailyLeaderboard.map((player, index) => (
+              <div key={index} style={styles.leaderboardRow}>
+                <span>#{index + 1}</span>
+                <span>{player.name}</span>
+                <span style={{ color: "lime" }}>₹{player.amount}</span>
+                <span>{player.wins} WIN</span>
+              </div>
+            ))
+          )}
         </div>
 
         <div style={styles.colorRow}>
@@ -864,6 +947,50 @@ const styles: any = {
     marginBottom: "15px",
     boxShadow: "0 0 18px rgba(0,255,0,0.3)",
   },
+  activeBetBox: {
+    background: "#050505",
+    border: "2px solid #ff1493",
+    borderRadius: "18px",
+    padding: "18px",
+    marginTop: "15px",
+    marginBottom: "20px",
+    boxShadow: "0 0 20px rgba(255,20,147,0.25)",
+  },
+  activeBetTitle: {
+    color: "#ff1493",
+    marginBottom: "15px",
+  },
+  activeBetGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    gap: "15px",
+  },
+  activeRed: {
+    background: "red",
+    padding: "16px",
+    borderRadius: "12px",
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+  activeGreen: {
+    background: "green",
+    padding: "16px",
+    borderRadius: "12px",
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+  activePink: {
+    background: "pink",
+    color: "black",
+    padding: "16px",
+    borderRadius: "12px",
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+  activeTotal: {
+    color: "#ff1493",
+    marginTop: "15px",
+  },
   livePoolBox: {
     background: "#050505",
     border: "2px solid #00e5ff",
@@ -907,6 +1034,28 @@ const styles: any = {
   totalPool: {
     color: "gold",
     marginTop: "15px",
+  },
+  leaderboardBox: {
+    background: "#050505",
+    border: "2px solid gold",
+    borderRadius: "18px",
+    padding: "18px",
+    marginTop: "15px",
+    marginBottom: "20px",
+    boxShadow: "0 0 20px rgba(255,215,0,0.25)",
+  },
+  leaderboardTitle: {
+    color: "gold",
+    marginBottom: "15px",
+  },
+  leaderboardRow: {
+    display: "grid",
+    gridTemplateColumns: "60px 1fr 130px 100px",
+    gap: "10px",
+    padding: "12px",
+    borderBottom: "1px solid #333",
+    fontWeight: "bold",
+    alignItems: "center",
   },
   winOverlay: {
     position: "fixed",
