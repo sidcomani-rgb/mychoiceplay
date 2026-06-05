@@ -29,6 +29,7 @@ export default function Home() {
   const [selectedColor, setSelectedColor] = useState("");
   const [bets, setBets] = useState<any[]>([]);
   const [results, setResults] = useState<any[]>([]);
+  const [winnerTicker, setWinnerTicker] = useState<any[]>([]);
   const [result, setResult] = useState("");
   const [timeLeft, setTimeLeft] = useState(ROUND_TIME);
   const [winPopup, setWinPopup] = useState<any>(null);
@@ -43,6 +44,26 @@ export default function Home() {
 
   const getCurrentRoundId = () =>
     Math.floor(Date.now() / (ROUND_TIME * 1000)).toString();
+
+  const currentRoundId = getCurrentRoundId();
+
+  const currentRoundPendingBets = bets.filter(
+    (b) => b.status === "pending" && b.roundId === currentRoundId
+  );
+
+  const redLiveTotal = currentRoundPendingBets
+    .filter((b) => b.color === "RED")
+    .reduce((sum, b) => sum + Number(b.amount || 0), 0);
+
+  const greenLiveTotal = currentRoundPendingBets
+    .filter((b) => b.color === "GREEN")
+    .reduce((sum, b) => sum + Number(b.amount || 0), 0);
+
+  const pinkLiveTotal = currentRoundPendingBets
+    .filter((b) => b.color === "PINK")
+    .reduce((sum, b) => sum + Number(b.amount || 0), 0);
+
+  const totalPool = redLiveTotal + greenLiveTotal + pinkLiveTotal;
 
   const playWinSound = () => {
     try {
@@ -203,6 +224,20 @@ export default function Home() {
         );
 
         setResults(sorted);
+
+        setWinnerTicker(
+          sorted.slice(0, 12).map((r) => ({
+            winner: r.winner,
+            amount:
+              Math.max(
+                Number(r.totalRed || 0),
+                Number(r.totalGreen || 0),
+                Number(r.totalPink || 0)
+              ) || 0,
+            roundId: r.roundId,
+          }))
+        );
+
         if (sorted.length > 0) setResult(sorted[0].winner);
       });
     });
@@ -481,6 +516,20 @@ export default function Home() {
 
       <h1 style={styles.title}>MY CHOICE PLAY</h1>
 
+      <div style={styles.tickerBox}>
+        <div style={styles.tickerTrack}>
+          {winnerTicker.length === 0 ? (
+            <span>🏆 PLAY & WIN BIG 🔥 MY CHOICE PLAY 🔥</span>
+          ) : (
+            [...winnerTicker, ...winnerTicker].map((item, i) => (
+              <span key={i} style={styles.tickerItem}>
+                🏆 {item.winner} WON ₹{item.amount} 🔥
+              </span>
+            ))
+          )}
+        </div>
+      </div>
+
       <section style={styles.card}>
         <p>Welcome, {user.displayName}</p>
         <p>{user.email}</p>
@@ -498,6 +547,16 @@ export default function Home() {
         )}
 
         {result && <h2 style={{ color: "lime" }}>Last Result: {result}</h2>}
+
+        <div style={styles.livePoolBox}>
+          <h2 style={styles.livePoolTitle}>🔥 LIVE BET COUNTER</h2>
+          <div style={styles.livePoolGrid}>
+            <div style={styles.liveRed}>🔴 RED ₹{redLiveTotal}</div>
+            <div style={styles.liveGreen}>🟢 GREEN ₹{greenLiveTotal}</div>
+            <div style={styles.livePink}>🌸 PINK ₹{pinkLiveTotal}</div>
+          </div>
+          <h2 style={styles.totalPool}>💰 TOTAL POOL: ₹{totalPool}</h2>
+        </div>
 
         <div style={styles.colorRow}>
           {["RED", "GREEN", "PINK"].map((color) => (
@@ -659,6 +718,11 @@ export default function Home() {
       </section>
 
       <style jsx global>{`
+        @keyframes tickerMove {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+
         @keyframes trophyBounce {
           0%, 100% { transform: scale(1) translateY(0); }
           50% { transform: scale(1.2) translateY(-15px); }
@@ -709,6 +773,72 @@ const styles: any = {
     minHeight: "100vh",
     color: "white",
     padding: "20px",
+  },
+  tickerBox: {
+    background: "#111",
+    color: "gold",
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+    padding: "14px",
+    borderRadius: "14px",
+    marginBottom: "18px",
+    border: "2px solid gold",
+    boxShadow: "0 0 20px rgba(255, 215, 0, 0.4)",
+  },
+  tickerTrack: {
+    display: "inline-block",
+    minWidth: "200%",
+    animation: "tickerMove 22s linear infinite",
+    fontWeight: "bold",
+    fontSize: "18px",
+  },
+  tickerItem: {
+    display: "inline-block",
+    marginRight: "45px",
+  },
+  livePoolBox: {
+    background: "#050505",
+    border: "2px solid #00e5ff",
+    borderRadius: "18px",
+    padding: "18px",
+    marginTop: "15px",
+    marginBottom: "20px",
+    boxShadow: "0 0 20px rgba(0,229,255,0.25)",
+  },
+  livePoolTitle: {
+    color: "#00e5ff",
+    marginBottom: "15px",
+  },
+  livePoolGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    gap: "15px",
+  },
+  liveRed: {
+    background: "red",
+    padding: "16px",
+    borderRadius: "12px",
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+  liveGreen: {
+    background: "green",
+    padding: "16px",
+    borderRadius: "12px",
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+  livePink: {
+    background: "pink",
+    color: "black",
+    padding: "16px",
+    borderRadius: "12px",
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+  totalPool: {
+    color: "gold",
+    marginTop: "15px",
   },
   winOverlay: {
     position: "fixed",
