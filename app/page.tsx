@@ -116,6 +116,8 @@ export default function Home() {
     .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
     .slice(0, 5);
 
+  const recentResults = results.slice(0, 10);
+
   const playWinSound = () => {
     try {
       const audioCtx = new (window.AudioContext ||
@@ -671,6 +673,38 @@ export default function Home() {
 
         {result && <h2 style={{ color: "lime" }}>Last Result: {result}</h2>}
 
+        <div style={styles.recentResultsBox}>
+          <h2 style={styles.recentResultsTitle}>📊 RECENT RESULTS</h2>
+
+          {recentResults.length === 0 ? (
+            <p style={{ color: "white" }}>No results yet</p>
+          ) : (
+            <div style={styles.recentResultsRow}>
+              {recentResults.map((item, index) => (
+                <div
+                  key={item.id || index}
+                  style={{
+                    ...styles.resultCircle,
+                    background:
+                      item.winner === "RED"
+                        ? "red"
+                        : item.winner === "GREEN"
+                        ? "green"
+                        : "pink",
+                    color: item.winner === "PINK" ? "black" : "white",
+                  }}
+                >
+                  {item.winner === "RED"
+                    ? "R"
+                    : item.winner === "GREEN"
+                    ? "G"
+                    : "P"}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div style={styles.livePoolBox}>
           <h2 style={styles.livePoolTitle}>🔥 LIVE BET COUNTER</h2>
           <div style={styles.livePoolGrid}>
@@ -991,6 +1025,37 @@ const styles: any = {
     color: "#ff1493",
     marginTop: "15px",
   },
+  recentResultsBox: {
+    background: "#050505",
+    border: "2px solid gold",
+    borderRadius: "18px",
+    padding: "18px",
+    marginTop: "15px",
+    marginBottom: "20px",
+    boxShadow: "0 0 20px rgba(255,215,0,0.25)",
+  },
+  recentResultsTitle: {
+    color: "gold",
+    marginBottom: "15px",
+  },
+  recentResultsRow: {
+    display: "flex",
+    gap: "12px",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  resultCircle: {
+    width: "46px",
+    height: "46px",
+    borderRadius: "50%",
+    border: "3px solid white",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "bold",
+    fontSize: "18px",
+    boxShadow: "0 0 12px rgba(255,255,255,0.35)",
+  },
   livePoolBox: {
     background: "#050505",
     border: "2px solid #00e5ff",
@@ -1307,12 +1372,39 @@ const styles: any = {
     color: "black",
     fontWeight: "bold",
   },
-  logoutBtn: {
-    padding: "14px 28px",
-    borderRadius: "50px",
-    border: "none",
-    background: "red",
-    color: "white",
-    fontWeight: "bold",
-  },
+
+  recentResultsBox: {
+  background: "#050505",
+  border: "2px solid gold",
+  borderRadius: "18px",
+  padding: "18px",
+  marginTop: "15px",
+  marginBottom: "20px",
+},
+recentResultsRow: {
+  display: "flex",
+  gap: "12px",
+  flexWrap: "wrap",
+},
+
+resultCircle: {
+  width: "46px",
+  height: "46px",
+  borderRadius: "50%",
+  border: "3px solid white",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: "bold",
+  fontSize: "18px",
+},
+
+logoutBtn: {
+  padding: "14px 28px",
+  borderRadius: "50px",
+  border: "none",
+  background: "red",
+  color: "white",
+  fontWeight: "bold",
+},
 };
