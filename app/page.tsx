@@ -561,7 +561,7 @@ export default function Home() {
                   animationDelay: `${(i % 15) * 0.1}s`,
                   background: [
                     "#ff1493",
-                    "#00e5ff",
+                    "#00a2ff94",
                     "#ffcc00",
                     "#00ff99",
                     "#ff3333",
@@ -806,25 +806,40 @@ export default function Home() {
         </button>
 
         <div style={styles.grid}>
-          <div style={styles.depositBox}>
-            <h3 style={{ color: "#ff1493" }}>Add Balance Request</h3>
-            <input
-              placeholder="Enter Amount"
-              value={depositAmount}
-              onChange={(e) => setDepositAmount(e.target.value)}
-              style={styles.input}
-            />
-            <input
-              placeholder="Enter UTR Number"
-              value={utr}
-              onChange={(e) => setUtr(e.target.value)}
-              style={styles.input}
-            />
-            <button onClick={sendDeposit} style={styles.depositBtn}>
-              SEND DEPOSIT
-            </button>
-          </div>
+  <div style={styles.depositBox}>
+    <h3 style={{ color: "#ff1493" }}>Add Balance Request</h3>
 
+    <img
+      src="/qr.jpg"
+      alt="Payment QR"
+      style={{
+        width: "220px",
+        maxWidth: "100%",
+        display: "block",
+        margin: "15px auto",
+        borderRadius: "15px",
+        border: "2px solid #ff1493",
+      }}
+    />
+
+    <input
+      placeholder="Enter Amount"
+      value={depositAmount}
+      onChange={(e) => setDepositAmount(e.target.value)}
+      style={styles.input}
+    />
+
+    <input
+      placeholder="Enter UTR Number"
+      value={utr}
+      onChange={(e) => setUtr(e.target.value)}
+      style={styles.input}
+    />
+
+    <button onClick={sendDeposit} style={styles.depositBtn}>
+      SEND DEPOSIT
+    </button>
+  </div>
           <div style={styles.withdrawBox}>
             <h3 style={{ color: "gold" }}>Withdraw Request</h3>
             <input
