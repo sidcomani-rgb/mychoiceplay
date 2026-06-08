@@ -705,6 +705,37 @@ export default function Home() {
           )}
         </div>
 
+<div style={styles.recentResultsBox}>
+  <h2 style={styles.recentResultsTitle}>📊 RECENT RESULTS</h2>
+
+  {recentResults.length === 0 ? (
+    <p style={{ color: "white" }}>No results yet</p>
+  ) : (
+    <div style={styles.recentResultsRow}>
+      {recentResults.map((item, index) => (
+        <div
+          key={item.id || index}
+          style={{
+            ...styles.resultCircle,
+            background:
+              item.winner === "RED"
+                ? "red"
+                : item.winner === "GREEN"
+                ? "green"
+                : "pink",
+            color: item.winner === "PINK" ? "black" : "white",
+          }}
+        >
+          {item.winner === "RED"
+            ? "R"
+            : item.winner === "GREEN"
+            ? "G"
+            : "P"}
+        </div>
+      ))}
+    </div>
+  )}
+</div>
         <div style={styles.livePoolBox}>
           <h2 style={styles.livePoolTitle}>🔥 LIVE BET COUNTER</h2>
           <div style={styles.livePoolGrid}>
@@ -1372,32 +1403,6 @@ const styles: any = {
     color: "black",
     fontWeight: "bold",
   },
-
-  recentResultsBox: {
-  background: "#050505",
-  border: "2px solid gold",
-  borderRadius: "18px",
-  padding: "18px",
-  marginTop: "15px",
-  marginBottom: "20px",
-},
-recentResultsRow: {
-  display: "flex",
-  gap: "12px",
-  flexWrap: "wrap",
-},
-
-resultCircle: {
-  width: "46px",
-  height: "46px",
-  borderRadius: "50%",
-  border: "3px solid white",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontWeight: "bold",
-  fontSize: "18px",
-},
 
 logoutBtn: {
   padding: "14px 28px",
