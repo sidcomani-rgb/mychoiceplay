@@ -820,24 +820,36 @@ export default function Home() {
     </>
   )}
 </div>
-          <div style={styles.withdrawBox}>
-            <h3 style={{ color: "gold" }}>Withdraw Request</h3>
-            <input
-              placeholder="Withdraw Amount"
-              value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(e.target.value)}
-              style={styles.input}
-            />
-            <input
-              placeholder="Enter UPI ID"
-              value={upi}
-              onChange={(e) => setUpi(e.target.value)}
-              style={styles.input}
-            />
-            <button onClick={sendWithdraw} style={styles.withdrawBtn}>
-              SEND WITHDRAW
-            </button>
-          </div>
+<div style={styles.withdrawBox}>
+  <h3
+    onClick={() => setShowWithdraw(!showWithdraw)}
+    style={{ color: "gold", cursor: "pointer" }}
+  >
+    Withdraw Request {showWithdraw ? "▲" : "▼"}
+  </h3>
+
+  {showWithdraw && (
+    <>
+      <input
+        placeholder="Withdraw Amount"
+        value={withdrawAmount}
+        onChange={(e) => setWithdrawAmount(e.target.value)}
+        style={styles.input}
+      />
+
+      <input
+        placeholder="Enter UPI ID"
+        value={upi}
+        onChange={(e) => setUpi(e.target.value)}
+        style={styles.input}
+      />
+
+      <button onClick={sendWithdraw} style={styles.withdrawBtn}>
+        SEND WITHDRAW
+      </button>
+    </>
+  )}
+</div>
         </div>
 
 <h2
