@@ -840,7 +840,15 @@ export default function Home() {
           </div>
         </div>
 
-        <h2 style={styles.historyTitle}>TRANSACTION HISTORY</h2>
+<h2
+  onClick={() => setShowHistory(!showHistory)}
+  style={{ ...styles.historyTitle, cursor: "pointer" }}
+>
+  TRANSACTION HISTORY {showHistory ? "▲" : "▼"}
+</h2>
+
+{showHistory && (
+  <>
 
         {history.length === 0 ? (
           <p>No Transactions</p>
@@ -869,6 +877,8 @@ export default function Home() {
           ))
         )}
 
+  </>
+)}
         <h2 style={styles.historyTitle}>BET HISTORY</h2>
 
         {bets
