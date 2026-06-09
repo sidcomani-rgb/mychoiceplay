@@ -34,6 +34,7 @@ export default function Home() {
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showBetHistory, setShowBetHistory] = useState(false);
+  const [showResultHistory, setShowResultHistory] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [winnerTicker, setWinnerTicker] = useState<any[]>([]);
   const [result, setResult] = useState("");
@@ -915,9 +916,16 @@ export default function Home() {
       ))}
   </>
 )}
-        <h2 style={styles.historyTitle}>RESULT HISTORY</h2>
+        <h2
+  onClick={() => setShowResultHistory(!showResultHistory)}
+  style={{ ...styles.historyTitle, cursor: "pointer" }}
+>
+  RESULT HISTORY {showResultHistory ? "▲" : "▼"}
+</h2>
 
-        {results.slice(0, 10).map((r, index) => (
+{showResultHistory && (
+  <>
+{results.slice(0, 10).map((r, index) => (
           <div key={index} style={styles.resultCard}>
             <p>Round: {r.roundId}</p>
             <p>
@@ -928,7 +936,10 @@ export default function Home() {
             <p>PINK Total: ₹{r.totalPink || 0}</p>
             <p>Date: {new Date(Number(r.createdAt)).toLocaleString()}</p>
           </div>
-        ))}
+            ))}
+  </>
+)}
+
 
         <div style={styles.btnRow}>
           {user.email === ADMIN_EMAIL && (
