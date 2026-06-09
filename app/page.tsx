@@ -33,6 +33,7 @@ export default function Home() {
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showBetHistory, setShowBetHistory] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [winnerTicker, setWinnerTicker] = useState<any[]>([]);
   const [result, setResult] = useState("");
@@ -891,24 +892,25 @@ export default function Home() {
 
   </>
 )}
-        <h2 style={styles.historyTitle}>BET HISTORY</h2>
+        <h2
+  onClick={() => setShowBetHistory(!showBetHistory)}
+  style={{ ...styles.historyTitle, cursor: "pointer" }}
+>
+  BET HISTORY {showBetHistory ? "▲" : "▼"}
+</h2>
 
-        {bets
-          .filter((b) => b.email === user.email)
-          .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
-          .map((bet, index) => (
-            <div key={index} style={styles.betHistory}>
-              <p>Round: {bet.roundId}</p>
-              <p>Color: {bet.color}</p>
-              <p>Amount: ₹{bet.amount}</p>
-              <p>
-                Status:{" "}
-                <b style={{ color: statusColor(bet.status) }}>{bet.status}</b>
-              </p>
-              <p>Result: {bet.result || "-"}</p>
-            </div>
-          ))}
-
+ {showBetHistory && (
+  <>
+    {bets
+      .filter((b) => b.email === user.email)
+      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+      .map((bet, index) => (
+        <div key={index} style={styles.betHistory}>
+          ...
+        </div>
+      ))}
+  </>
+)}
         <h2 style={styles.historyTitle}>RESULT HISTORY</h2>
 
         {results.slice(0, 10).map((r, index) => (
