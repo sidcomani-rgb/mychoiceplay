@@ -906,8 +906,12 @@ export default function Home() {
       .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
       .map((bet, index) => (
         <div key={index} style={styles.betHistory}>
-          ...
-        </div>
+  <p>Round: {bet.roundId}</p>
+  <p>Color: {bet.color}</p>
+  <p>Amount: ₹{bet.amount}</p>
+  <p>Status: {bet.status}</p>
+  <p>Result: {bet.result}</p>
+</div>
       ))}
   </>
 )}
