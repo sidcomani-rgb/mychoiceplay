@@ -30,6 +30,9 @@ export default function Home() {
   const [betAmount, setBetAmount] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [bets, setBets] = useState<any[]>([]);
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [winnerTicker, setWinnerTicker] = useState<any[]>([]);
   const [result, setResult] = useState("");
@@ -673,38 +676,6 @@ export default function Home() {
 
         {result && <h2 style={{ color: "lime" }}>Last Result: {result}</h2>}
 
-        <div style={styles.recentResultsBox}>
-          <h2 style={styles.recentResultsTitle}>📊 RECENT RESULTS</h2>
-
-          {recentResults.length === 0 ? (
-            <p style={{ color: "white" }}>No results yet</p>
-          ) : (
-            <div style={styles.recentResultsRow}>
-              {recentResults.map((item, index) => (
-                <div
-                  key={item.id || index}
-                  style={{
-                    ...styles.resultCircle,
-                    background:
-                      item.winner === "RED"
-                        ? "red"
-                        : item.winner === "GREEN"
-                        ? "green"
-                        : "pink",
-                    color: item.winner === "PINK" ? "black" : "white",
-                  }}
-                >
-                  {item.winner === "RED"
-                    ? "R"
-                    : item.winner === "GREEN"
-                    ? "G"
-                    : "P"}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
 <div style={styles.recentResultsBox}>
   <h2 style={styles.recentResultsTitle}>📊 RECENT RESULTS</h2>
 
@@ -806,40 +777,49 @@ export default function Home() {
         </button>
 
         <div style={styles.grid}>
-  <div style={styles.depositBox}>
-    <h3 style={{ color: "#ff1493" }}>Add Balance Request</h3>
+ <div style={styles.depositBox}>
+  <h3
+    onClick={() => setShowDeposit(!showDeposit)}
+    style={{ color: "#ff1493", cursor: "pointer" }}
+  >
+    Add Balance Request {showDeposit ? "▲" : "▼"}
+  </h3>
 
-    <img
-      src="/qr.jpg"
-      alt="Payment QR"
-      style={{
-        width: "220px",
-        maxWidth: "100%",
-        display: "block",
-        margin: "15px auto",
-        borderRadius: "15px",
-        border: "2px solid #ff1493",
-      }}
-    />
+  {showDeposit && (
+    <>
+      <img
+        src="/qr.jpg"
+        alt="Payment QR"
+        style={{
+          width: "220px",
+          maxWidth: "100%",
+          display: "block",
+          margin: "15px auto",
+          borderRadius: "15px",
+          border: "2px solid #ff1493",
+        }}
+      />
 
-    <input
-      placeholder="Enter Amount"
-      value={depositAmount}
-      onChange={(e) => setDepositAmount(e.target.value)}
-      style={styles.input}
-    />
+      <input
+        placeholder="Enter Amount"
+        value={depositAmount}
+        onChange={(e) => setDepositAmount(e.target.value)}
+        style={styles.input}
+      />
 
-    <input
-      placeholder="Enter UTR Number"
-      value={utr}
-      onChange={(e) => setUtr(e.target.value)}
-      style={styles.input}
-    />
+      <input
+        placeholder="Enter UTR Number"
+        value={utr}
+        onChange={(e) => setUtr(e.target.value)}
+        style={styles.input}
+      />
 
-    <button onClick={sendDeposit} style={styles.depositBtn}>
-      SEND DEPOSIT
-    </button>
-  </div>
+      <button onClick={sendDeposit} style={styles.depositBtn}>
+        SEND DEPOSIT
+      </button>
+    </>
+  )}
+</div>
           <div style={styles.withdrawBox}>
             <h3 style={{ color: "gold" }}>Withdraw Request</h3>
             <input
