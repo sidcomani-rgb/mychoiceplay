@@ -754,6 +754,59 @@ export default function Home() {
             </button>
           ))}
         </div>
+        <div style={{
+  display: "flex",
+  gap: "8px",
+  marginBottom: "10px",
+  flexWrap: "wrap"
+}}>
+  {[10, 50, 100, 1000].map((amt) => (
+    <button
+      key={amt}
+      onClick={() => setBetAmount(String(amt))}
+      style={{
+        padding: "8px 14px",
+        borderRadius: "20px",
+        border: "none",
+        background: "#00e5ff",
+        color: "#000",
+        fontWeight: "bold",
+        cursor: "pointer"
+      }}
+    >
+      ₹{amt}
+    </button>
+  ))}
+</div>
+
+<div style={{
+  display: "flex",
+  gap: "8px",
+  marginBottom: "10px",
+  flexWrap: "wrap"
+}}>
+  {[2, 3, 5, 10].map((multi) => (
+    <button
+      key={multi}
+      onClick={() =>
+        setBetAmount(
+          String((Number(betAmount || 0) || 10) * multi)
+        )
+      }
+      style={{
+        padding: "8px 14px",
+        borderRadius: "20px",
+        border: "none",
+        background: "#ffcc00",
+        color: "#000",
+        fontWeight: "bold",
+        cursor: "pointer"
+      }}
+    >
+      {multi}X
+    </button>
+  ))}
+</div>
 
         <input
           placeholder="Enter Bet Amount"
