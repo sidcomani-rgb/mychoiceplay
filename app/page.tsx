@@ -892,26 +892,26 @@ export default function Home() {
 
   </>
 )}
-        <h2
+<h2
   onClick={() => setShowBetHistory(!showBetHistory)}
   style={{ ...styles.historyTitle, cursor: "pointer" }}
 >
   BET HISTORY {showBetHistory ? "▲" : "▼"}
 </h2>
 
- {showBetHistory && (
+{showBetHistory && (
   <>
     {bets
       .filter((b) => b.email === user.email)
       .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
       .map((bet, index) => (
         <div key={index} style={styles.betHistory}>
-  <p>Round: {bet.roundId}</p>
-  <p>Color: {bet.color}</p>
-  <p>Amount: ₹{bet.amount}</p>
-  <p>Status: {bet.status}</p>
-  <p>Result: {bet.result}</p>
-</div>
+          <p>Round: {bet.roundId}</p>
+          <p>Color: {bet.color}</p>
+          <p>Amount: ₹{bet.amount}</p>
+          <p>Status: {bet.status}</p>
+          <p>Result: {bet.result || "-"}</p>
+        </div>
       ))}
   </>
 )}
