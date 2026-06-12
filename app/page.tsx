@@ -658,7 +658,7 @@ export default function Home() {
         <h1 style={styles.balance}>Balance: ₹{balance}</h1>
 
         <div style={styles.onlinePlayersBox}>
-          🟢 ONLINE PLAYERS: {onlinePlayers}
+          <span>🟢 ONLINE PLAYERS: LIVE</span>
         </div>
 
         <div style={styles.activeBetBox}>
