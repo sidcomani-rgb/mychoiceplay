@@ -121,7 +121,7 @@ export default function Home() {
     .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
     .slice(0, 5);
 
-  const recentResults = results.slice(0, 10);
+  const recentResults = results.slice(0, 20);
 
   const playWinSound = () => {
     try {
@@ -1170,22 +1170,21 @@ const styles: any = {
   },
   recentResultsRow: {
     display: "flex",
-    gap: "12px",
+    gap: "6px",
     flexWrap: "wrap",
     alignItems: "center",
   },
   resultCircle: {
-    width: "46px",
-    height: "46px",
-    borderRadius: "50%",
-    border: "3px solid white",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: "bold",
-    fontSize: "18px",
-    boxShadow: "0 0 12px rgba(255,255,255,0.35)",
-  },
+  width: "16px",
+  height: "16px",
+  borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: "bold",
+  fontSize: "8px",
+  boxShadow: "0 0 6px rgba(255,255,255,0.35)",
+},
   livePoolBox: {
     background: "#050505",
     border: "2px solid #00e5ff",
