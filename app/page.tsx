@@ -447,8 +447,21 @@ export default function Home() {
       (b) => b.status === "pending" && b.roundId === roundId
     );
 
-    if (pendingBets.length === 0) return;
+    if (pendingBets.length === 0) {
+  const randomWinner = ["RED", "GREEN", "PINK"][Math.floor(Math.random() * 3)];
 
+  await setDoc(doc(db, "results", roundId), {
+    roundId,
+    winner: randomWinner,
+    totalRed: 0,
+    totalGreen: 0,
+    totalPink: 0,
+    createdAt: Date.now(),
+  });
+
+  setResult(randomWinner);
+  return;
+}
     const totals: any = {};
 
     pendingBets.forEach((b) => {
@@ -708,18 +721,10 @@ export default function Home() {
       ))}
     </div>
   )}
-</div>
-        <div style={styles.livePoolBox}>
-          <h2 style={styles.livePoolTitle}>🔥 LIVE BET COUNTER</h2>
-          <div style={styles.livePoolGrid}>
-            <div style={styles.liveRed}>🔴 RED ₹{redLiveTotal}</div>
-            <div style={styles.liveGreen}>🟢 GREEN ₹{greenLiveTotal}</div>
-            <div style={styles.livePink}>🌸 PINK ₹{pinkLiveTotal}</div>
-          </div>
-          <h2 style={styles.totalPool}>💰 TOTAL POOL: ₹{totalPool}</h2>
-        </div>
+  </div> 
 
-        <div style={styles.leaderboardBox}>
+<div style={styles.leaderboardBox}>
+
           <h2 style={styles.leaderboardTitle}>🏆 DAILY LEADERBOARD</h2>
 
           {dailyLeaderboard.length === 0 ? (
@@ -737,23 +742,30 @@ export default function Home() {
         </div>
 
         <div style={styles.colorRow}>
-          {["RED", "GREEN", "PINK"].map((color) => (
-            <button
-              key={color}
-              onClick={() => !isBetLocked && setSelectedColor(color)}
-              disabled={isBetLocked}
-              style={{
-                ...styles.colorBtn,
-                background: color.toLowerCase(),
-                border: selectedColor === color ? "4px solid white" : "none",
-                opacity: isBetLocked ? 0.5 : 1,
-                cursor: isBetLocked ? "not-allowed" : "pointer",
-              }}
-            >
-              {color}
-            </button>
-          ))}
-        </div>
+ {["RED", "GREEN", "PINK"].map((color) => (
+  <button
+    key={color}
+    onClick={() => !isBetLocked && setSelectedColor(color)}
+    disabled={isBetLocked}
+    style={{
+      ...styles.colorBtn,
+      background: color.toLowerCase(),
+      border: selectedColor === color ? "4px solid white" : "none",
+      opacity: isBetLocked ? 0.5 : 1,
+      cursor: isBetLocked ? "not-allowed" : "pointer",
+    }}
+  >
+    <span>
+      {color} ₹
+      {color === "RED"
+        ? redLiveTotal
+        : color === "GREEN"
+        ? greenLiveTotal
+        : pinkLiveTotal}
+    </span>
+  </button>
+))}
+</div>
         <div style={{
   display: "flex",
   gap: "8px",
