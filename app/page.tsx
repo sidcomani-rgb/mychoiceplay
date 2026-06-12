@@ -669,9 +669,9 @@ export default function Home() {
           ) : (
             <>
               <div style={styles.activeBetGrid}>
-                <div style={styles.activeRed}>🔴 RED ₹{myRedActive}</div>
-                <div style={styles.activeGreen}>🟢 GREEN ₹{myGreenActive}</div>
-                <div style={styles.activePink}>🌸 PINK ₹{myPinkActive}</div>
+                {myRedActive > 0 && <div style={styles.activeRed}>🔴 RED ₹{myRedActive}</div>}
+{myGreenActive > 0 && <div style={styles.activeGreen}>🟢 GREEN ₹{myGreenActive}</div>}
+{myPinkActive > 0 && <div style={styles.activePink}>💗 PINK ₹{myPinkActive}</div>}
               </div>
               <h2 style={styles.activeTotal}>TOTAL ACTIVE BET: ₹{myTotalActive}</h2>
             </>
